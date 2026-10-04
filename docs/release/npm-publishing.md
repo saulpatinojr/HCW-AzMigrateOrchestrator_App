@@ -21,7 +21,7 @@ with a short-lived login session, never with a stored token:
 
 ```bash
 git clone https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App.git && cd HCW-AzMigrateOrchestrator_App
-git checkout v0.2.0
+git checkout v0.2.1
 npm ci && npm run build && npm run packages:verify
 npm login
 cd dist-packages/migration-core && npm publish --access public && cd ../migration-ui && npm publish --access public
@@ -52,10 +52,10 @@ repository and workflow).
 
 ## 5. Switch the downstream consumers to the registry
 
-- `_Addon`: replace the two `file:` links in `package.json` with the exact version (`"@hybridcloudworks/migration-core": "0.2.0"`),
+- `_Addon`: replace the two `file:` links in `package.json` with the exact version (`"@hybridcloudworks/migration-core": "0.2.1"`),
   remove the sibling checkout steps from `.github/workflows`, and delete `scripts/bootstrap-app.sh`. Dependabot (`npm`
   ecosystem, already enabled) then proposes every later bump; `core-update.yml` can be retired.
-- Website: `npm install --save-exact @hybridcloudworks/migration-ui@0.2.0 --workspace=frontend` and add
+- Website: `npm install --save-exact @hybridcloudworks/migration-ui@0.2.1 --workspace=frontend` and add
   `@source "../node_modules/@hybridcloudworks/migration-ui/dist";` to the Tailwind entry (see the integration guide in `_Addon`).
 
 Never publish from a developer machine after step 2; never create or store an npm automation token.

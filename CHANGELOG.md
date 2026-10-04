@@ -2,6 +2,10 @@
 
 > **Repository split (2026-10-04, ADR-0027).** This file predates the split of the monorepo into `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` and `saulpatinojr/HCW-AzMigrateOrchestrator_App`. This repository (`saulpatinojr/HCW-AzMigrateOrchestrator_Addon`) holds the shared core, rules, CLI, lab API, lab web harness and the UI package. Entries below describe the monorepo as it was; paths that moved to the sibling repository are noted there.
 
+## Unreleased
+
+- READMEs rewritten for the public repositories: badges, the upstream/downstream relationship diagram, release contract, repository map; `docs/README.md` and `infrastructure/README.md` indexes added. GitHub description, homepage and topics set. Removed the site-specific Copilot MCP reference config (it belongs to the website repository). npm bootstrap prepared and paused by the owner before step 1; `publish-npm.yml` stays gated (`docs/release/npm-publishing.md`).
+
 ## 0.2.1 — 2026-10-04 (Node 26 runtime floor, ADR-0029)
 
 - Coordinated runtime bump to **Node 26** across every surface: `engines.node >=26` (repository and both published packages), `@types/node ^26.6.4`, `setup-node 26` in every workflow, `node:26-bookworm-slim` in the appliance image, the Node 26 devcontainer, and `--target=node26` for the single-executable CLI. Supersedes the lone Dockerfile bump Dependabot proposed. Verified locally on Node 26.5: 88 tests, clean-consumer gate, appliance image (starts, Trivy clean), CLI executable smoke.
