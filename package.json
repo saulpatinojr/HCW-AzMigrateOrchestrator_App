@@ -1,12 +1,12 @@
 {
   "name": "hcw-azmigrateorchestrator-app",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Azure Migration Orchestrator — the appliance and the migration intelligence core it is built on; publishes @hybridcloudworks/migration-core and @hybridcloudworks/migration-ui (ADR-0028)",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   },
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
     "package": "bash scripts/package-repository.sh"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.4",
     "esbuild": "^0.24.2",
     "postject": "^1.0.0-alpha.6",
     "typescript": "^5.6.3"

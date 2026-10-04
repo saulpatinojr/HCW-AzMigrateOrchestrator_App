@@ -94,6 +94,12 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Not executed:** anything against npmjs.com (names unpublished; scope ownership unverified anonymously; `publish-npm.yml` is gated and will be skipped until the owner bootstrap); GitHub Actions on the flipped head (pushed after this section was written — see the run links in the PR/commit); Playwright (lives in `_Addon`); live Azure.
 - **Limitation:** the published packages are ESM-only with Node16 resolution; CommonJS consumers are not supported. Appliance start-up does not refuse to run without Entra configuration (requests fail closed at the route level; start-up refusal is a Phase 1 defect item).
 
+## Node 26 runtime floor (2026-10-04, ADR-0029)
+
+- **Executed (Windows 11, Node 26.5, npm 11.17, Docker Desktop 29.8):** `npm install` with `@types/node ^26.6.4`; `npm test` — 88 pass; `npm run packages:verify` passes and the published packages declare `engines.node >=26`; `docker build` of `Dockerfile.appliance` on `node:26-bookworm-slim` → Node 26 at runtime, core import ok, API starts, containerised Trivy (HIGH/CRITICAL, fixed only) exit 0; `scripts/build-sea.sh` with `--target=node26` → Windows executable passes `rules validate`; all workflows parse with `setup-node 26`.
+- **Not executed locally:** GitHub-hosted runners on Node 26 (first exercised by the CI run of the Node 26 commit and by the `v0.2.1` release workflows — see their run links in the plan); Linux/macOS CLI builds (release matrix); the devcontainer image pull.
+- **Note:** earlier sections that say "CI targets Node 22" describe runs before this change.
+
 ## Not implemented
 
 Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTML reports; rate limiting at the API (recommended at Caddy); persistence of enterprise assessments; cost/capacity live checks (agent defined, returns unknown without authenticated APIs).

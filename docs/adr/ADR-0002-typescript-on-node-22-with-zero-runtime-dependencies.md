@@ -1,5 +1,7 @@
 # ADR-0002: TypeScript on Node 22 with zero runtime dependencies
 
+> Runtime floor raised to Node 26 on 2026-10-04 — see ADR-0029. The zero-runtime-dependency decision stands.
+
 **Status:** Accepted · **Date:** 2026-10-03
 
 ## Context

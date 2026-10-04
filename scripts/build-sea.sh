@@ -20,7 +20,7 @@ NAME="amo-$OS-$ARCH"; [ "$OS" = windows ] && NAME="$NAME.exe"
 BIN="$OUT/$NAME"
 
 node scripts/bundle-rules-asset.mjs "$OUT/rules.json"
-npx esbuild apps/cli/dist/main.js --bundle --platform=node --target=node22 --format=cjs --outfile="$OUT/amo.cjs" --log-level=warning \
+npx esbuild apps/cli/dist/main.js --bundle --platform=node --target=node26 --format=cjs --outfile="$OUT/amo.cjs" --log-level=warning \
   --banner:js="/* Azure Migration Orchestrator CLI — single executable build. Rules embedded from rules/ at build time. */"
 cat > "$OUT/sea-config.json" <<JSON
 { "main": "$OUT/amo.cjs", "output": "$OUT/amo.blob", "disableExperimentalSEAWarning": true, "useCodeCache": false,

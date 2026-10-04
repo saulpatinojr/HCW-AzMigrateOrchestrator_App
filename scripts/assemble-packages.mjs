@@ -63,7 +63,7 @@ exportsMap["./package.json"] = "./package.json";
 writeFileSync(join(coreDir, "package.json"), JSON.stringify({
   name: CORE_NAME, version: VERSION,
   description: "Azure Migration Orchestrator — migration intelligence core: taxonomy, versioned Microsoft-Learn-sourced rules, classification, agents, report/Terraform/runbook generators, API contracts. Deterministic rules decide; nothing here reaches Azure.",
-  license: "MIT", type: "module", sideEffects: false, engines: { node: ">=22" },
+  license: "MIT", type: "module", sideEffects: false, engines: { node: ">=26" },
   repository: { type: "git", url: `${REPO}.git` }, homepage: REPO, bugs: `${REPO}/issues`,
   keywords: ["azure", "migration", "resource-mover", "azure-migrate", "assessment", "terraform"],
   files: ["dist", "rules", "README.md"], exports: exportsMap, dependencies: {}
@@ -93,7 +93,7 @@ const external = Object.fromEntries(Object.entries(uiSrcPkg.dependencies ?? {}).
 writeFileSync(join(uiDir, "package.json"), JSON.stringify({
   name: UI_NAME, version: VERSION,
   description: "Hybrid Cloud Works Migration Explorer — React components for the CSV migration lab (upload, questionnaire, decisions, waves, generated files). Mounts as a client-only island; talks to the lab API only.",
-  license: "MIT", type: "module", sideEffects: false, engines: { node: ">=22" },
+  license: "MIT", type: "module", sideEffects: false, engines: { node: ">=26" },
   repository: { type: "git", url: `${REPO}.git`, directory: "packages/ui" }, homepage: REPO, bugs: `${REPO}/issues`,
   keywords: ["azure", "migration", "react", "explorer"],
   files: ["dist", "README.md"],

@@ -4,7 +4,7 @@ This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`: the upstream product — e
 appliance (ADR-0028). It publishes `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui`; the slim web-front
 edition `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` consumes them.
 
-Build/test: `npm ci && npm test` (TypeScript project references, Node 22 test runner; the build also assembles `dist-packages/`).
+Build/test: `npm ci && npm test` (TypeScript project references, Node 26 test runner; the build also assembles `dist-packages/`).
 Rules: `npm run rules:validate`. Packages: `npm run packages:verify`. Web UI: `npm run web:build`.
 Conventions and invariants: `CLAUDE.md`. Review expectations: `.github/copilot-instructions.md` and
 `.github/skills/code-review/references/azure-migration-orchestrator-profile.md`.

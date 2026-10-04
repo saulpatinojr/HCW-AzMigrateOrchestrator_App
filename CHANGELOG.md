@@ -2,6 +2,11 @@
 
 > **Repository split (2026-10-04, ADR-0027).** This file predates the split of the monorepo into `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` and `saulpatinojr/HCW-AzMigrateOrchestrator_App`. This repository (`saulpatinojr/HCW-AzMigrateOrchestrator_Addon`) holds the shared core, rules, CLI, lab API, lab web harness and the UI package. Entries below describe the monorepo as it was; paths that moved to the sibling repository are noted there.
 
+## 0.2.1 — 2026-10-04 (Node 26 runtime floor, ADR-0029)
+
+- Coordinated runtime bump to **Node 26** across every surface: `engines.node >=26` (repository and both published packages), `@types/node ^26.6.4`, `setup-node 26` in every workflow, `node:26-bookworm-slim` in the appliance image, the Node 26 devcontainer, and `--target=node26` for the single-executable CLI. Supersedes the lone Dockerfile bump Dependabot proposed. Verified locally on Node 26.5: 88 tests, clean-consumer gate, appliance image (starts, Trivy clean), CLI executable smoke.
+- Dependabot: merged `actions/checkout` 7.0.1, `actions/upload-artifact` 7.0.1, `docker/metadata-action` 6.2.0, `docker/setup-buildx-action` 4.4.1 (SHA pins kept).
+
 ## 0.2.0 — 2026-10-04 (ADR-0028: this repository is the upstream product)
 
 - **Flip.** The engine (`packages/*`), rule corpus, `amo` CLI and explorer UI components moved here from `_Addon`; this repository now builds and runs alone and publishes `@hybridcloudworks/migration-core` (17 subpath exports + `rules/`) and `@hybridcloudworks/migration-ui` from `dist-packages/` (`scripts/assemble-packages.mjs`, run by `npm run build`). The Azure clients (`azure-auth`, `azure-arm`, `azure-execution`) stay here and are never published.

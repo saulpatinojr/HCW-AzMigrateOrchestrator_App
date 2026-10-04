@@ -15,7 +15,7 @@ an implementation status for **this build**, and pointers. Status legend: **Done
 | R-06 | Workspace inspection recorded (§4) | Done | `docs/repository-existing-files-review.md` |
 | R-07 | Repository delivery contract + ZIP without nested dir, exclusions (§5) | Done | `scripts/package-repository.{sh,ps1}`, `make package`, `tests/end-to-end/repository-manifest.test.mjs` |
 | R-08 | Monorepo structure (§6) | Done | All listed packages/apps exist with real content: `packages/ui` (Sprint 1), `apps/appliance-web` (Sprint 6), `apps/worker` (Sprint 7); plus `apps/ui-harness` for e2e |
-| R-09 | Technology selection + ADRs (§7) | Done | TypeScript/Node 22, zero runtime deps; ADR-0001…0016 |
+| R-09 | Technology selection + ADRs (§7) | Done | TypeScript/Node 26 (ADR-0029; was 22 per ADR-0002), zero runtime deps; ADR-0001…0016 |
 | R-10 | Decision taxonomy (§8) | Done | `packages/domain/src/taxonomy.ts` |
 | R-11 | Resource decision record fields (§9) | Done | `packages/domain/src/decision.ts` |
 | R-12 | Initial rules vertical slice for 24 types; Unknown for others (§10) | Done | 34 rules in `rules/azure`; `NO_RULE_FOR_TYPE` → unknown-requires-validation |

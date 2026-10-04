@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
+        with: { node-version: 26, cache: npm, registry-url: "https://registry.npmjs.org" }
       - name: npm with trusted-publishing support (>= 11.5.1)
         run: npm install -g npm@latest && npm --version
       - run: npm ci
