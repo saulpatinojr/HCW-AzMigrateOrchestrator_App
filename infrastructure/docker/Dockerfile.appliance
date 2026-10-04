@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.7
+# NOTE: pin by digest before production use (VALIDATION.md).
+# Azure Migration Orchestrator — appliance API + worker. Managed identity / WIF only; no client secrets accepted at startup.
+# Build context is the PARENT directory containing both checkouts (ADR-0027 interim contract):
+#   <ctx>/HCW-AzMigrateOrchestrator_Addon   (shared core + rules, at the pinned ref)
+#   <ctx>/HCW-AzMigrateOrchestrator_App     (this repository)
+# docker build -f HCW-AzMigrateOrchestrator_App/infrastructure/docker/Dockerfile.appliance .
+FROM node:22-bookworm-slim AS build
+WORKDIR /srv
+COPY HCW-AzMigrateOrchestrator_Addon/package.json HCW-AzMigrateOrchestrator_Addon/package-lock.json HCW-AzMigrateOrchestrator_Addon/tsconfig.base.json HCW-AzMigrateOrchestrator_Addon/tsconfig.build.json ./HCW-AzMigrateOrchestrator_Addon/
+COPY HCW-AzMigrateOrchestrator_Addon/packages ./HCW-AzMigrateOrchestrator_Addon/packages
+COPY HCW-AzMigrateOrchestrator_Addon/apps ./HCW-AzMigrateOrchestrator_Addon/apps
+RUN cd HCW-AzMigrateOrchestrator_Addon && npm ci --no-audit --no-fund && npm run build && npm prune --omit=dev
+COPY HCW-AzMigrateOrchestrator_App/package.json HCW-AzMigrateOrchestrator_App/package-lock.json HCW-AzMigrateOrchestrator_App/tsconfig.base.json HCW-AzMigrateOrchestrator_App/tsconfig.build.json ./HCW-AzMigrateOrchestrator_App/
+COPY HCW-AzMigrateOrchestrator_App/packages ./HCW-AzMigrateOrchestrator_App/packages
+COPY HCW-AzMigrateOrchestrator_App/apps ./HCW-AzMigrateOrchestrator_App/apps
+RUN cd HCW-AzMigrateOrchestrator_App && npm ci --no-audit --no-fund && npm run build && npm prune --omit=dev
+
+FROM node:22-bookworm-slim
+ENV NODE_ENV=production PORT=8081 AMO_RULES_DIR=/srv/HCW-AzMigrateOrchestrator_Addon/rules AMO_CREDENTIAL_KIND=managed-identity
+WORKDIR /srv/HCW-AzMigrateOrchestrator_App
+# Keep the two-tree layout so the relative file: symlinks in node_modules/@amo/* resolve unchanged.
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_Addon/node_modules /srv/HCW-AzMigrateOrchestrator_Addon/node_modules
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_Addon/packages /srv/HCW-AzMigrateOrchestrator_Addon/packages
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_Addon/package.json /srv/HCW-AzMigrateOrchestrator_Addon/
+COPY HCW-AzMigrateOrchestrator_Addon/rules /srv/HCW-AzMigrateOrchestrator_Addon/rules
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_App/node_modules ./node_modules
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_App/packages ./packages
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_App/apps/appliance-api ./apps/appliance-api
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_App/apps/worker ./apps/worker
+COPY --from=build /srv/HCW-AzMigrateOrchestrator_App/package.json ./
+RUN rm -rf packages/*/src apps/*/src /srv/HCW-AzMigrateOrchestrator_Addon/packages/*/src /srv/HCW-AzMigrateOrchestrator_Addon/packages/ui && chown -R node:node /srv
+USER node
+EXPOSE 8081
+HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8081/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "apps/appliance-api/dist/server.js"]

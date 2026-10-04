@@ -1,0 +1,141 @@
+import { createRequire } from "node:module";
+import type { Assessment } from "@amo/domain";
+import type { TokenCredential } from "@amo/azure-auth";
+import type { TrackedOperation } from "@amo/azure-execution";
+
+/** Scope for Microsoft Entra authentication to Azure Database for PostgreSQL. */
+export const POSTGRES_ENTRA_SCOPE = "https://ossrdbms-aad.database.windows.net/.default";
+
+/** `pg` accepts `password` as an async function: each new connection fetches a fresh Entra access token (ADR-0025). */
+export function pgEntraPasswordProvider(credential: TokenCredential): () => Promise<string> {
+  return async () => (await credential.getToken(POSTGRES_ENTRA_SCOPE)).token;
+}
+
+/** Persistence for the appliance (ADR-0004). Assessments, approvals and audit events. */
+export interface ApprovalRecord { id: string; operation: string; targetKey: string; approvedBy: string; approvedAt: string; note: string | null }
+export interface AuditEvent { at: string; actor: string; event: string; details: Record<string, unknown> }
+
+export interface AssessmentRepository {
+  init(): Promise<void>;
+  saveAssessment(a: Assessment, ownerOid: string): Promise<void>;
+  getAssessment(id: string): Promise<{ assessment: Assessment; ownerOid: string } | null>;
+  listAssessments(ownerOid: string): Promise<Array<{ id: string; createdAt: string; resourceCount: number; operation: string }>>;
+  recordApproval(r: ApprovalRecord): Promise<void>;
+  approvalsFor(targetKey: string): Promise<ApprovalRecord[]>;
+  audit(e: AuditEvent): Promise<void>;
+  saveOperation(op: TrackedOperation): Promise<void>;
+  pendingOperations(): Promise<TrackedOperation[]>;
+  operationsFor(targetKey: string): Promise<TrackedOperation[]>;
+}
+
+export class InMemoryRepository implements AssessmentRepository {
+  private a = new Map<string, { assessment: Assessment; ownerOid: string }>();
+  private approvals: ApprovalRecord[] = [];
+  readonly events: AuditEvent[] = [];
+  async init(): Promise<void> {}
+  async saveAssessment(assessment: Assessment, ownerOid: string): Promise<void> { this.a.set(assessment.id, { assessment, ownerOid }); }
+  async getAssessment(id: string) { return this.a.get(id) ?? null; }
+  async listAssessments(ownerOid: string) { return [...this.a.values()].filter((x) => x.ownerOid === ownerOid).map(({ assessment: x }) => ({ id: x.id, createdAt: x.createdAt, resourceCount: x.summary.resourceCount, operation: x.intent.desiredOperation })); }
+  async recordApproval(r: ApprovalRecord): Promise<void> { this.approvals.push(r); }
+  async approvalsFor(targetKey: string) { return this.approvals.filter((r) => r.targetKey === targetKey); }
+  async audit(e: AuditEvent): Promise<void> { this.events.push(e); }
+  private ops = new Map<string, TrackedOperation>();
+  async saveOperation(op: TrackedOperation): Promise<void> { this.ops.set(op.id, op); }
+  async pendingOperations() { return [...this.ops.values()].filter((o) => o.status === "InProgress" || o.status === "Unknown"); }
+  async operationsFor(targetKey: string) { return [...this.ops.values()].filter((o) => o.targetKey === targetKey); }
+}
+
+/** Minimal query interface so the PostgreSQL repository can be tested without a server. */
+export interface SqlClient { query(text: string, params?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }> }
+
+export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS assessments (
+  id UUID PRIMARY KEY,
+  owner_oid TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  operation TEXT NOT NULL,
+  resource_count INTEGER NOT NULL,
+  body JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS assessments_owner_idx ON assessments(owner_oid, created_at DESC);
+CREATE TABLE IF NOT EXISTS approvals (
+  id UUID PRIMARY KEY,
+  operation TEXT NOT NULL,
+  target_key TEXT NOT NULL,
+  approved_by TEXT NOT NULL,
+  approved_at TIMESTAMPTZ NOT NULL,
+  note TEXT
+);
+CREATE INDEX IF NOT EXISTS approvals_target_idx ON approvals(target_key);
+CREATE TABLE IF NOT EXISTS operations (
+  id UUID PRIMARY KEY,
+  kind TEXT NOT NULL,
+  target_key TEXT NOT NULL,
+  operation_url TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_by TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  retry_after_seconds INTEGER NOT NULL DEFAULT 15,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS operations_status_idx ON operations(status);
+CREATE TABLE IF NOT EXISTS audit_events (
+  id BIGSERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL,
+  actor TEXT NOT NULL,
+  event TEXT NOT NULL,
+  details JSONB NOT NULL
+);
+`;
+
+export class PostgresRepository implements AssessmentRepository {
+  constructor(private readonly sql: SqlClient) {}
+  async init(): Promise<void> { await this.sql.query(SCHEMA_SQL); }
+  async saveAssessment(a: Assessment, ownerOid: string): Promise<void> {
+    await this.sql.query("INSERT INTO assessments(id, owner_oid, created_at, operation, resource_count, body) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body", [a.id, ownerOid, a.createdAt, a.intent.desiredOperation, a.summary.resourceCount, JSON.stringify(a)]);
+  }
+  async getAssessment(id: string) {
+    const { rows } = await this.sql.query("SELECT owner_oid, body FROM assessments WHERE id = $1", [id]);
+    if (!rows[0]) return null;
+    const body = rows[0].body;
+    return { assessment: (typeof body === "string" ? JSON.parse(body) : body) as Assessment, ownerOid: String(rows[0].owner_oid) };
+  }
+  async listAssessments(ownerOid: string) {
+    const { rows } = await this.sql.query("SELECT id, created_at, resource_count, operation FROM assessments WHERE owner_oid = $1 ORDER BY created_at DESC LIMIT 100", [ownerOid]);
+    return rows.map((r) => ({ id: String(r.id), createdAt: String(r.created_at), resourceCount: Number(r.resource_count), operation: String(r.operation) }));
+  }
+  async recordApproval(r: ApprovalRecord): Promise<void> {
+    await this.sql.query("INSERT INTO approvals(id, operation, target_key, approved_by, approved_at, note) VALUES ($1,$2,$3,$4,$5,$6)", [r.id, r.operation, r.targetKey, r.approvedBy, r.approvedAt, r.note]);
+  }
+  async approvalsFor(targetKey: string) {
+    const { rows } = await this.sql.query("SELECT id, operation, target_key, approved_by, approved_at, note FROM approvals WHERE target_key = $1", [targetKey]);
+    return rows.map((r) => ({ id: String(r.id), operation: String(r.operation), targetKey: String(r.target_key), approvedBy: String(r.approved_by), approvedAt: String(r.approved_at), note: r.note == null ? null : String(r.note) }));
+  }
+  async audit(e: AuditEvent): Promise<void> { await this.sql.query("INSERT INTO audit_events(at, actor, event, details) VALUES ($1,$2,$3,$4)", [e.at, e.actor, e.event, JSON.stringify(e.details)]); }
+  async saveOperation(o: TrackedOperation): Promise<void> {
+    await this.sql.query("INSERT INTO operations(id, kind, target_key, operation_url, status, started_by, started_at, updated_at, retry_after_seconds, error) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, updated_at = EXCLUDED.updated_at, retry_after_seconds = EXCLUDED.retry_after_seconds, error = EXCLUDED.error", [o.id, o.kind, o.targetKey, o.operationUrl, o.status, o.startedBy, o.startedAt, o.updatedAt, o.retryAfterSeconds, o.error]);
+  }
+  private rowToOp(r: Record<string, unknown>): TrackedOperation { return { id: String(r.id), kind: String(r.kind), targetKey: String(r.target_key), operationUrl: String(r.operation_url), status: r.status as TrackedOperation["status"], startedBy: String(r.started_by), startedAt: String(r.started_at), updatedAt: String(r.updated_at), retryAfterSeconds: Number(r.retry_after_seconds), error: r.error == null ? null : String(r.error) }; }
+  async pendingOperations() { const { rows } = await this.sql.query("SELECT * FROM operations WHERE status IN ('InProgress','Unknown') ORDER BY updated_at ASC LIMIT 200"); return rows.map((r) => this.rowToOp(r)); }
+  async operationsFor(targetKey: string) { const { rows } = await this.sql.query("SELECT * FROM operations WHERE target_key = $1 ORDER BY started_at DESC", [targetKey]); return rows.map((r) => this.rowToOp(r)); }
+}
+
+export interface PoolFactory { (config: { connectionString: string; ssl?: { rejectUnauthorized: boolean }; password?: () => Promise<string> }): SqlClient }
+
+export async function repositoryFromEnv(env: NodeJS.ProcessEnv = process.env, credential: TokenCredential | null = null, poolFactory?: PoolFactory): Promise<AssessmentRepository> {
+  if (!env.DATABASE_URL) return new InMemoryRepository();
+  const local = /localhost|127\.0\.0\.1|@postgres[:/]/.test(env.DATABASE_URL);
+  if (/password=|:\/\/[^/]*:[^@]+@/.test(env.DATABASE_URL) && !local) throw new Error("DATABASE_URL must not embed a password for non-local hosts; use Entra authentication for PostgreSQL (docs/deployment/enterprise.md)");
+  if (!local && !credential) throw new Error("Azure Database for PostgreSQL requires a TokenCredential for Entra authentication (AMO_CREDENTIAL_KIND)");
+  const factory: PoolFactory = poolFactory ?? ((cfg) => new (require_pg().Pool)(cfg) as unknown as SqlClient);
+  const pool = factory({ connectionString: env.DATABASE_URL, ssl: /sslmode=require/.test(env.DATABASE_URL) ? { rejectUnauthorized: true } : undefined, ...(local ? {} : { password: pgEntraPasswordProvider(credential!) }) });
+  const repo = new PostgresRepository(pool);
+  await repo.init();
+  return repo;
+}
+
+// Lazy CommonJS require so the appliance can start without pg installed when DATABASE_URL is unset (tests, lab builds never import this file).
+function require_pg(): { Pool: new (cfg: unknown) => unknown } {
+  return createRequire(import.meta.url)("pg");
+}

@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/azure-auth"
+    },
+    {
+      "path": "packages/azure-arm"
+    },
+    {
+      "path": "packages/azure-execution"
+    },
+    {
+      "path": "apps/appliance-api"
+    },
+    {
+      "path": "apps/worker"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@amo/appliance-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@amo/domain": "0.1.0",
+    "@amo/contracts": "0.1.0",
+    "@amo/agents": "0.1.0",
+    "@amo/authorization": "0.1.0",
+    "@amo/azure-discovery": "0.1.0",
+    "@amo/observability": "0.1.0",
+    "@amo/azure-auth": "0.1.0",
+    "@amo/azure-execution": "0.1.0",
+    "pg": "^8.13.1",
+    "@amo/azure-arm": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
+  }
+}

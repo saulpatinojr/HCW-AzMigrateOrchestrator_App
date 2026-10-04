@@ -1,0 +1,20 @@
+{
+  "name": "@amo/azure-arm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@amo/domain": "0.1.0",
+    "@amo/azure-auth": "0.1.0",
+    "@amo/azure-discovery": "0.1.0"
+  },
+  "description": "Azure Resource Graph, ARM validateMoveResources and scope inventory clients (appliance only)"
+}

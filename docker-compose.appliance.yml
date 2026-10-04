@@ -1,0 +1,37 @@
+# Appliance (enterprise) reference composition for local development. Sign-in requires AMO_ENTRA_TENANT_ID/CLIENT_ID;
+# discovery uses AMO_CREDENTIAL_KIND=azure-cli locally (mount ~/.azure) or the fixture (AMO_DISCOVERY_FIXTURE=1).
+# In Azure, run from infrastructure/terraform/appliance-azure instead (Container Apps + managed identity).
+# Build context is the parent directory holding both checkouts (ADR-0027): run from this repository root with
+#   docker compose -f docker-compose.appliance.yml up --build
+services:
+  appliance-api:
+    build: { context: .., dockerfile: HCW-AzMigrateOrchestrator_App/infrastructure/docker/Dockerfile.appliance }
+    environment:
+      AMO_ENTRA_TENANT_ID: "${AMO_ENTRA_TENANT_ID:-}"
+      AMO_ENTRA_CLIENT_ID: "${AMO_ENTRA_CLIENT_ID:-}"
+      AMO_CREDENTIAL_KIND: "${AMO_CREDENTIAL_KIND:-azure-cli}"
+      AMO_DISCOVERY_FIXTURE: "${AMO_DISCOVERY_FIXTURE:-0}"
+      AMO_ENTRA_AUDIENCE: "${AMO_ENTRA_AUDIENCE:-}"
+      DATABASE_URL: "postgres://amo@postgres:5432/amo?sslmode=disable"
+    ports: ["8081:8081"]
+    depends_on: [postgres]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  worker:
+    build: { context: .., dockerfile: HCW-AzMigrateOrchestrator_App/infrastructure/docker/Dockerfile.appliance }
+    command: ["node", "apps/worker/dist/main.js"]
+    environment:
+      AMO_ENTRA_TENANT_ID: "${AMO_ENTRA_TENANT_ID:-}"
+      AMO_CREDENTIAL_KIND: "${AMO_CREDENTIAL_KIND:-azure-cli}"
+      DATABASE_URL: "postgres://amo@postgres:5432/amo?sslmode=disable"
+    depends_on: [postgres]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: amo
+      POSTGRES_DB: amo
+      POSTGRES_HOST_AUTH_METHOD: trust  # local development only; use managed identity / Key Vault in Azure
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+volumes: { pgdata: {} }

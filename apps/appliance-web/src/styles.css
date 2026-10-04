@@ -1,0 +1,4 @@
+@import "tailwindcss";
+/* Scan the shared UI package (consumed from the workspace symlink) so its utility classes are generated. */
+@source "../../../node_modules/@amo/ui/dist";
+@source "../../../node_modules/@amo/ui/src";

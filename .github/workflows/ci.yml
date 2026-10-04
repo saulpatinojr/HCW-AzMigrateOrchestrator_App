@@ -1,0 +1,33 @@
+# PIN-BY-SHA: actions are pinned by version tag in this build; replace with commit SHAs before enabling branch protection — VALIDATION.md.
+# The shared core comes from saulpatinojr/HCW-AzMigrateOrchestrator_Addon at ADDON_REF. Bump ADDON_REF deliberately; never point it at main (ADR-0027).
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+env:
+  ADDON_REF: v0.1.0
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: HCW-AzMigrateOrchestrator_App } }
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with: { path: HCW-AzMigrateOrchestrator_App }
+      - name: Check out the shared core at the pinned ref (ADR-0027 interim contract)
+        uses: actions/checkout@v4.2.2
+        with: { repository: saulpatinojr/HCW-AzMigrateOrchestrator_Addon, ref: "${{ env.ADDON_REF }}", path: HCW-AzMigrateOrchestrator_Addon }
+      - uses: actions/setup-node@v4.4.0
+        with: { node-version: 22, cache: npm, cache-dependency-path: "HCW-AzMigrateOrchestrator_*/package-lock.json" }
+      - run: npm ci && npm run build
+        working-directory: HCW-AzMigrateOrchestrator_Addon
+      - run: npm ci
+      - run: npm test
+      - name: Build appliance web (Vite + Tailwind)
+        run: npm run web:build
+        env: { VITE_ENTRA_TENANT_ID: ci, VITE_ENTRA_SPA_CLIENT_ID: ci, VITE_API_SCOPE: ci }
+      - name: Package repository ZIP (artifact)
+        run: bash scripts/package-repository.sh
+      - uses: actions/upload-artifact@v4.6.2
+        with: { name: hcw-azmigrateorchestrator-app, path: HCW-AzMigrateOrchestrator_App/hcw-azmigrateorchestrator-app.zip, retention-days: 7 }
