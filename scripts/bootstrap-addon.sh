@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Clone (or reuse) the sibling _Addon checkout at the pinned ref and build it so this repository's file: links resolve (ADR-0027).
-# Usage: ADDON_REF=v0.1.0 bash scripts/bootstrap-addon.sh
+# Usage: ADDON_REF=v0.1.1 bash scripts/bootstrap-addon.sh
 set -euo pipefail
-ADDON_REF="${ADDON_REF:-v0.1.0}"
+ADDON_REF="${ADDON_REF:-v0.1.1}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="$ROOT/../HCW-AzMigrateOrchestrator_Addon"
 if [ ! -d "$DIR" ]; then
