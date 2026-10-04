@@ -1,0 +1,11 @@
+# gitleaks configuration (security.yml secret-scan). Extends the default rules.
+title = "HCW-AzMigrateOrchestrator_App"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Deliberately secret-shaped FAKE strings used to prove the logger redacts connection strings, SAS signatures and JWTs. Nothing here is a credential."
+paths = [
+  '''packages/observability/src/observability\.test\.ts''',
+]
