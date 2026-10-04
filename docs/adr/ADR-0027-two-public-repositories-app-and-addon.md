@@ -1,6 +1,6 @@
 # ADR-0027: Two public repositories — `_App` (appliance) and `_Addon` (lab, UI package, core)
 
-**Status:** Accepted · **Date:** 2026-10-04 · **Supersedes the single-monorepo assumption in `WORKING-PLAN.md`; refines ADR-0017**
+**Status:** Accepted; repository table superseded by ADR-0028 (the appliance is upstream, the web-front edition downstream) · **Date:** 2026-10-04 · **Supersedes the single-monorepo assumption in `WORKING-PLAN.md`; refines ADR-0017**
 
 ## Context
 

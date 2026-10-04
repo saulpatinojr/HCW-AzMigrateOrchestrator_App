@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 OUT="${1:-hcw-azmigrateorchestrator-app.zip}"
 rm -f "$OUT"
 zip -qr "$OUT" . \
-  -x ".git/*" "node_modules/*" "*/node_modules/*" "dist/*" "*/dist/*" "dist-sea/*" "*.tsbuildinfo" ".local/*" ".env" ".env.*" \
+  -x ".git/*" "node_modules/*" "*/node_modules/*" "dist/*" "*/dist/*" "dist-sea/*" "dist-packages/*" "*.tsbuildinfo" ".local/*" ".env" ".env.*" \
      "coverage/*" "data/*" "*.tfstate" "*.tfstate.*" ".terraform/*" "*/.terraform/*" "*.log" "__pycache__/*" "*.pyc" ".DS_Store" "$OUT" \
   -i "*" 
 # zip's -i "*" with -x list above; re-add allowed .env.example explicitly (excluded by the .env.* pattern)

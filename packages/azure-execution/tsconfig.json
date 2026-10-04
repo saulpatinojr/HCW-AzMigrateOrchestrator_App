@@ -9,7 +9,16 @@
   ],
   "references": [
     {
-      "path": "../../packages/azure-auth"
+      "path": "../domain"
+    },
+    {
+      "path": "../authorization"
+    },
+    {
+      "path": "../azure-auth"
+    },
+    {
+      "path": "../observability"
     }
   ]
 }

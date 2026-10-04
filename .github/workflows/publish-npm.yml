@@ -1,0 +1,35 @@
+# Actions are pinned to full commit SHAs (version in the trailing comment); Dependabot (github-actions ecosystem) proposes updates.
+# Publishes @hybridcloudworks/migration-core and @hybridcloudworks/migration-ui with npm trusted publishing (OIDC, provenance).
+# No npm token is stored anywhere. Gated on the repository variable NPM_TRUSTED_PUBLISHING=ready, which the owner sets after the
+# one-time registry bootstrap described in docs/release/npm-publishing.md. Until then this workflow is skipped, not failed.
+name: publish-npm
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    if: vars.NPM_TRUSTED_PUBLISHING == 'ready'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
+      - name: npm with trusted-publishing support (>= 11.5.1)
+        run: npm install -g npm@latest && npm --version
+      - run: npm ci
+      - name: Build and assemble at the tag version
+        run: |
+          npx tsc -b tsconfig.build.json
+          node scripts/assemble-packages.mjs --version "${GITHUB_REF_NAME#v}"
+      - name: Clean-consumer gate
+        run: node scripts/verify-packed-consumer.mjs
+      - name: Publish migration-core
+        working-directory: dist-packages/migration-core
+        run: npm publish --access public --provenance
+      - name: Publish migration-ui
+        working-directory: dist-packages/migration-ui
+        run: npm publish --access public --provenance

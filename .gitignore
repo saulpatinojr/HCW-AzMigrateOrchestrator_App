@@ -19,3 +19,4 @@ data/
 dist-sea/
 test-results/
 playwright-report/
+dist-packages/

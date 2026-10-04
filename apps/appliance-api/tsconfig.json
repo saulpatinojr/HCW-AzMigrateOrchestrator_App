@@ -9,6 +9,24 @@
   ],
   "references": [
     {
+      "path": "../../packages/domain"
+    },
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/agents"
+    },
+    {
+      "path": "../../packages/authorization"
+    },
+    {
+      "path": "../../packages/azure-discovery"
+    },
+    {
+      "path": "../../packages/observability"
+    },
+    {
       "path": "../../packages/azure-auth"
     },
     {

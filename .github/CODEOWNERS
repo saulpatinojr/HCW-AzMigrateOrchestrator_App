@@ -1,8 +1,8 @@
-# Default owner: repository owner. Azure-touching packages and infrastructure require owner review.
+# Default owner: repository owner. Rules, the engine, Azure-touching packages and infrastructure require owner review.
 *                                   @saulpatinojr
-/packages/azure-auth/               @saulpatinojr
-/packages/azure-arm/                @saulpatinojr
-/packages/azure-execution/          @saulpatinojr
+/rules/                             @saulpatinojr
+/packages/                          @saulpatinojr
 /apps/appliance-api/                @saulpatinojr
+/scripts/assemble-packages.mjs      @saulpatinojr
 /infrastructure/                    @saulpatinojr
 /.github/                           @saulpatinojr

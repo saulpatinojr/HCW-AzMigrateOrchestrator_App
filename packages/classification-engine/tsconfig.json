@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../domain"
+    },
+    {
+      "path": "../evidence-engine"
+    },
+    {
+      "path": "../dependency-graph"
+    },
+    {
+      "path": "../landing-zone"
+    }
+  ]
+}

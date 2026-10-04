@@ -1,8 +1,14 @@
 # AGENTS.md — guidance for coding agents (Copilot coding agent, Codex, Claude)
 
-This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`: the Azure appliance. The shared migration core and the rule corpus are **not in this tree**; they come from
-`saulpatinojr/HCW-AzMigrateOrchestrator_Addon` checked out as a sibling directory at the ref pinned in `.github/workflows/*.yml` (ADR-0027).
+This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`: the upstream product — engine, rules, CLI, UI components and the Azure
+appliance (ADR-0028). It publishes `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui`; the slim web-front
+edition `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` consumes them.
 
-Build/test: `npm run addon:bootstrap` (clones and builds the sibling at the pinned ref) then `npm ci && npm test`. Web UI: `npm run web:build`.
-Conventions and invariants: `CLAUDE.md`. Review expectations: `.github/copilot-instructions.md`.
-AI-created changes go through the review → fix → current-head verification cycle in `.github/setup/HANDSHAKE.md`.
+Build/test: `npm ci && npm test` (TypeScript project references, Node 22 test runner; the build also assembles `dist-packages/`).
+Rules: `npm run rules:validate`. Packages: `npm run packages:verify`. Web UI: `npm run web:build`.
+Conventions and invariants: `CLAUDE.md`. Review expectations: `.github/copilot-instructions.md` and
+`.github/skills/code-review/references/azure-migration-orchestrator-profile.md`.
+
+Product agents (the 19 migration agents) are documented in `docs/agents/README.md` and defined in
+`packages/agents/src/definitions.ts`; do not confuse them with coding agents. AI-created changes go through the
+review → fix → current-head verification cycle described in `.github/setup/HANDSHAKE.md`.

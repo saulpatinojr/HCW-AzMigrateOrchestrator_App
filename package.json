@@ -1,8 +1,8 @@
 {
   "name": "hcw-azmigrateorchestrator-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Azure Migration Orchestrator appliance — authenticated, read-only-by-default assessment of Azure estates (ADR-0027)",
+  "description": "Azure Migration Orchestrator — the appliance and the migration intelligence core it is built on; publishes @hybridcloudworks/migration-core and @hybridcloudworks/migration-ui (ADR-0028)",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -17,38 +17,25 @@
     "apps/*"
   ],
   "scripts": {
-    "addon:bootstrap": "bash scripts/bootstrap-addon.sh",
-    "build": "tsc -b tsconfig.build.json",
-    "clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo apps/*/*.tsbuildinfo",
-    "test": "npm run build && node scripts/run-tests.mjs",
-    "test:only": "node scripts/run-tests.mjs",
+    "build": "tsc -b tsconfig.build.json && node scripts/assemble-packages.mjs",
+    "clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo apps/*/*.tsbuildinfo dist-packages",
+    "test": "npm run build && node --test \"packages/*/dist/**/*.test.js\" \"apps/*/dist/**/*.test.js\" \"tests/**/*.test.mjs\"",
+    "test:only": "node --test \"packages/*/dist/**/*.test.js\" \"apps/*/dist/**/*.test.js\" \"tests/**/*.test.mjs\"",
     "typecheck": "tsc -b tsconfig.build.json --dry",
+    "rules:validate": "node apps/cli/dist/main.js rules validate",
+    "rules:report": "node apps/cli/dist/main.js rules report",
+    "assess:sample": "node apps/cli/dist/main.js assess --csv samples/resources-csv/sample-resources.csv --out ./.local/assessment-output --region westus3",
+    "goldens:update": "node scripts/generate-goldens.mjs",
+    "packages:assemble": "node scripts/assemble-packages.mjs",
+    "packages:verify": "node scripts/verify-packed-consumer.mjs",
     "web:build": "cd apps/appliance-web && npx tsc -p tsconfig.json && npx vite build",
     "appliance:api": "node apps/appliance-api/dist/server.js",
     "package": "bash scripts/package-repository.sh"
   },
-  "dependencies": {
-    "@amo/domain": "file:../HCW-AzMigrateOrchestrator_Addon/packages/domain",
-    "@amo/contracts": "file:../HCW-AzMigrateOrchestrator_Addon/packages/contracts",
-    "@amo/observability": "file:../HCW-AzMigrateOrchestrator_Addon/packages/observability",
-    "@amo/csv-ingestion": "file:../HCW-AzMigrateOrchestrator_Addon/packages/csv-ingestion",
-    "@amo/evidence-engine": "file:../HCW-AzMigrateOrchestrator_Addon/packages/evidence-engine",
-    "@amo/dependency-graph": "file:../HCW-AzMigrateOrchestrator_Addon/packages/dependency-graph",
-    "@amo/landing-zone": "file:../HCW-AzMigrateOrchestrator_Addon/packages/landing-zone",
-    "@amo/classification-engine": "file:../HCW-AzMigrateOrchestrator_Addon/packages/classification-engine",
-    "@amo/validation-engine": "file:../HCW-AzMigrateOrchestrator_Addon/packages/validation-engine",
-    "@amo/report-engine": "file:../HCW-AzMigrateOrchestrator_Addon/packages/report-engine",
-    "@amo/terraform-generator": "file:../HCW-AzMigrateOrchestrator_Addon/packages/terraform-generator",
-    "@amo/runbook-generator": "file:../HCW-AzMigrateOrchestrator_Addon/packages/runbook-generator",
-    "@amo/artifact-generator": "file:../HCW-AzMigrateOrchestrator_Addon/packages/artifact-generator",
-    "@amo/authorization": "file:../HCW-AzMigrateOrchestrator_Addon/packages/authorization",
-    "@amo/workspace-provider": "file:../HCW-AzMigrateOrchestrator_Addon/packages/workspace-provider",
-    "@amo/azure-discovery": "file:../HCW-AzMigrateOrchestrator_Addon/packages/azure-discovery",
-    "@amo/agents": "file:../HCW-AzMigrateOrchestrator_Addon/packages/agents",
-    "@amo/ui": "file:../HCW-AzMigrateOrchestrator_Addon/packages/ui"
-  },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "esbuild": "^0.24.2",
+    "postject": "^1.0.0-alpha.6",
     "typescript": "^5.6.3"
   }
 }

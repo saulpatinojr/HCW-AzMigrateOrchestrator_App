@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 $root = (Get-Location).Path
 if (Test-Path $Out) { Remove-Item $Out -Force }
-$exclude = @('\.git(\\|/)', 'node_modules', '(\\|/)dist(\\|/)', '\.tsbuildinfo$', '\.local(\\|/)', '(^|\\|/)\.env$', '(^|\\|/)\.env\.(?!example)', '(\\|/)data(\\|/)', '\.tfstate', '\.terraform(\\|/)', '\.log$', '__pycache__', '\.pyc$', ([regex]::Escape($Out) + '$'))
+$exclude = @('dist-packages', '\.git(\\|/)', 'node_modules', '(\\|/)dist(\\|/)', '\.tsbuildinfo$', '\.local(\\|/)', '(^|\\|/)\.env$', '(^|\\|/)\.env\.(?!example)', '(\\|/)data(\\|/)', '\.tfstate', '\.terraform(\\|/)', '\.log$', '__pycache__', '\.pyc$', ([regex]::Escape($Out) + '$'))
 $rx = '(' + ($exclude -join ')|(') + ')'
 $files = @(Get-ChildItem -Recurse -File -Force | Where-Object { $_.FullName.Substring($root.Length + 1) -notmatch $rx })
 if ($files.Count -eq 0) { throw "no files selected for packaging" }

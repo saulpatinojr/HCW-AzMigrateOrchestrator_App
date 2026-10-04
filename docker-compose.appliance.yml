@@ -1,11 +1,9 @@
 # Appliance (enterprise) reference composition for local development. Sign-in requires AMO_ENTRA_TENANT_ID/CLIENT_ID;
 # discovery uses AMO_CREDENTIAL_KIND=azure-cli locally (mount ~/.azure) or the fixture (AMO_DISCOVERY_FIXTURE=1).
 # In Azure, run from infrastructure/terraform/appliance-azure instead (Container Apps + managed identity).
-# Build context is the parent directory holding both checkouts (ADR-0027): run from this repository root with
-#   docker compose -f docker-compose.appliance.yml up --build
 services:
   appliance-api:
-    build: { context: .., dockerfile: HCW-AzMigrateOrchestrator_App/infrastructure/docker/Dockerfile.appliance }
+    build: { context: ., dockerfile: infrastructure/docker/Dockerfile.appliance }
     environment:
       AMO_ENTRA_TENANT_ID: "${AMO_ENTRA_TENANT_ID:-}"
       AMO_ENTRA_CLIENT_ID: "${AMO_ENTRA_CLIENT_ID:-}"
@@ -18,7 +16,7 @@ services:
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
   worker:
-    build: { context: .., dockerfile: HCW-AzMigrateOrchestrator_App/infrastructure/docker/Dockerfile.appliance }
+    build: { context: ., dockerfile: infrastructure/docker/Dockerfile.appliance }
     command: ["node", "apps/worker/dist/main.js"]
     environment:
       AMO_ENTRA_TENANT_ID: "${AMO_ENTRA_TENANT_ID:-}"

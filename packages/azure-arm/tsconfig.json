@@ -9,7 +9,13 @@
   ],
   "references": [
     {
+      "path": "../domain"
+    },
+    {
       "path": "../azure-auth"
+    },
+    {
+      "path": "../azure-discovery"
     }
   ]
 }

@@ -15,4 +15,4 @@ Never expose secrets. Never treat a stale/older-head check as current evidence. 
 
 ## This repository
 
-This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`: the Azure appliance (API, web, worker, Azure auth/ARM/Resource Mover clients, Container Apps Terraform). The shared core and rules come from `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` at the ref pinned in `.github/workflows` (ADR-0027). Build needs that sibling checkout: `npm run addon:bootstrap`. Use `.github/skills/code-review/references/azure-migration-orchestrator-profile.md` for component routing. Run `npm test` and `npm run rules:validate` as review evidence. Rules live in the core repository; change them there.
+This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`: the appliance **and** the migration intelligence core (engine, rules, CLI, UI components) it is built on — the upstream product (ADR-0028). It publishes `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui`; the slim web-front edition in `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` consumes them.
