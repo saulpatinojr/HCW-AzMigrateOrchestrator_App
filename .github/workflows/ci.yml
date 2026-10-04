@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 env:
-  ADDON_REF: v0.1.2
+  ADDON_REF: v0.1.3
 jobs:
   build-test:
     runs-on: ubuntu-latest
