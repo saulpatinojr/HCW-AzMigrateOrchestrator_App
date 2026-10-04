@@ -49,5 +49,5 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - name: Scan published image
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with: { image-ref: "${{ env.IMAGE }}@${{ steps.build.outputs.digest }}", exit-code: "1", severity: "HIGH,CRITICAL", ignore-unfixed: true }
