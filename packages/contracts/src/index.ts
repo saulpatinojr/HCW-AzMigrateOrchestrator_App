@@ -50,3 +50,44 @@ export function parseCreateAssessmentRequest(body: unknown): { ok: true; value: 
   }
   return { ok: true, value: { csv: b.csv, fileName: b.fileName as string | undefined, intent: intent as Partial<MigrationIntent> } };
 }
+
+/** Health envelope every HCW AddOn serves at GET /api/health (HCW AddOn Integration Standard section 11). Flat: id and version at the top level. */
+export interface AddOnHealth {
+  ok: boolean;
+  id: string;
+  version: string;
+  edition: string;
+  capabilities: string[];
+  asOf: string;
+  /** Site origins the pane may post hcw-addon messages to; from the AddOn's environment, never from the image. */
+  siteOrigins: string[];
+  turnstile: { required: boolean; siteKey: string | null };
+}
+
+export const ADDON_HEALTH_FIELDS = ["ok", "id", "version", "edition", "capabilities", "asOf", "siteOrigins", "turnstile"] as const;
+
+/** Structural guard; the website's proxy applies its own projection and length limits on top. */
+export function isAddOnHealth(x: unknown): x is AddOnHealth {
+  if (!x || typeof x !== "object") return false;
+  const h = x as Record<string, unknown>;
+  const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every((s) => typeof s === "string");
+  const t = h.turnstile;
+  if (!t || typeof t !== "object") return false;
+  const { required, siteKey } = t as Record<string, unknown>;
+  if (typeof required !== "boolean" || !(siteKey === null || typeof siteKey === "string")) return false;
+  // Invariant: a pane cannot initialise the widget without a key, so required implies a non-empty site key.
+  if (required && !siteKey) return false;
+  return typeof h.ok === "boolean" && typeof h.id === "string" && typeof h.version === "string" && typeof h.edition === "string"
+    && strings(h.capabilities) && typeof h.asOf === "string" && strings(h.siteOrigins);
+}
+
+/** Pane protocol (standard section 8): AddOn to site only, one shape, four states. */
+export const ADDON_PANE_STATES = ["loading", "ready", "working", "unavailable"] as const;
+export type AddOnPaneState = (typeof ADDON_PANE_STATES)[number];
+export interface AddOnPaneMessage {
+  type: "hcw-addon";
+  id: string;
+  state: AddOnPaneState;
+  /** A site path from the website's allow-list; honoured only when the catalogue row grants `navigate`. */
+  navigate?: string;
+}

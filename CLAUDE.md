@@ -21,5 +21,5 @@ versions and must stay technically unable to reach Azure: `azure-auth`, `azure-a
   publishing is trusted publishing only (`docs/release/npm-publishing.md`); never add a registry token.
 - Owner-pasteable commands: no placeholders; bash and PowerShell both acceptable.
 - This repository holds the canonical ADR log for both repositories. Record material design choices as ADRs in `docs/adr/`
-  (next number: 0030). Record limitations in `VALIDATION.md`.
+  (next number: 0031). Record limitations in `VALIDATION.md`.
 - Docs for agents are generated: edit `packages/agents/src/definitions.ts`, then `node scripts/generate-agent-docs.mjs`.

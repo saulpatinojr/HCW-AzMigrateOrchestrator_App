@@ -9,6 +9,7 @@
 | Persistence | PostgreSQL (planned) | in-memory, TTL, immediate delete |
 | Output | same bundle + `VALIDATION-STATUS.md` | same bundle + `DEMO-NOT-FOR-PRODUCTION.md` |
 | Execution | controlled, approval-gated (not yet implemented) | technically impossible |
+| Hosting | One Azure Container App, same origin for API and web (appliance image) | Site pane: framed at hybridcloudworks.com/tools/migration from migration.lab.hybridcloudworks.com on the lab host, run by the downstream edition (ADR-0030) |
 
 The 14 questions from §1 map onto `ResourceDecisionRecord`: 1–5 → `nativeMoveSupport`, `regionalRelocationSupport`,
 `recommendedTool`, `dataDisposition`; 6–8 → the four dimension dispositions; 9 → `disposition` (retain/retire/replace/

@@ -40,23 +40,22 @@ flowchart LR
   end
   subgraph Addon["saulpatinojr/HCW-AzMigrateOrchestrator_Addon — downstream web-front edition"]
     L[CSV lab API]
-    H[Harness + Playwright e2e]
+    H[Pane app apps/lab-web + Playwright e2e]
   end
-  W[hybridcloudworks.com]
+  W["hybridcloudworks.com /tools/migration (pane)"]
   E -- "@hybridcloudworks/migration-core" --> L
-  U -- "@hybridcloudworks/migration-ui" --> W
   U -- "@hybridcloudworks/migration-ui" --> H
   A -- "appliance image (GHCR, by digest)" --> AZ[(Azure Container App)]
   C -- "release binaries + checksums" --> R[(GitHub Releases)]
-  L -- "lab image (GHCR)" --> V[(Hostinger VPS)]
-  W -- "/api/*" --> L
+  L -- "lab image (Docker Hub, by digest)" --> V[(lab host)]
+  W -- "sandboxed frame, same-origin /api/*" --> L
   App -. "release tag → core-update PR<br/>compatible = addon tests + e2e pass" .-> Addon
 ```
 
 | Repository | Role | Publishes |
 |---|---|---|
 | **`HCW-AzMigrateOrchestrator_App`** (this one) | Upstream: engine, rules, CLI, UI components, appliance. Freestanding. | `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui`, CLI binaries, appliance image |
-| [`HCW-AzMigrateOrchestrator_Addon`](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon) | Downstream: the slim web-front edition — CSV lab API and the hybridcloudworks.com explorer integration. Freestanding in deployment; depends on exact versions of the two packages. | Lab image |
+| [`HCW-AzMigrateOrchestrator_Addon`](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon) | Downstream: the slim web-front edition — CSV lab API and the pane framed at hybridcloudworks.com/tools/migration. Freestanding in deployment; depends on exact versions of the two packages. | Lab image |
 
 **Updates flow downstream.** Every release here is picked up by the addon's `core-update` workflow, which builds the
 release, installs it, runs the addon's unit tests and browser e2e, and opens a pull request bumping the pin labelled

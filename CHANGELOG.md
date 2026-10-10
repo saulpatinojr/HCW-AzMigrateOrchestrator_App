@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 0.3.0 (unreleased): the web-front edition runs as a site pane (ADR-0030)
+
+- `packages/ui`: `MigrationExplorer` is pane-ready. `apiBaseUrl` is optional and defaults to `""` (same origin); new optional props `partners` (default `true`), `cta` (default `true`), `onStageChange`, `onNavigate`, `contactPath`; `Stage`, `MigrationExplorerProps`, `ResultsStage`, `EnterpriseCta` and `MigrationAddOnHealth` exported. With `onNavigate` set the enterprise CTA is a button that hands `contactPath` to the host instead of navigating inside a frame. `LabApiClient.health()` is typed on `AddOnHealth`. **Public surface change:** the downstream edition adopts it through `core-update`.
+- `packages/contracts`: `AddOnHealth`, `ADDON_HEALTH_FIELDS`, `isAddOnHealth`, `ADDON_PANE_STATES`, `AddOnPaneState`, `AddOnPaneMessage`: the flat health envelope every HCW AddOn serves at `GET /api/health` and the pane message shape, shared with the website's status proxy.
+- ADR-0030 supersedes the ADR-0028 consequence that the website installs the UI package from npm; WORKING-PLAN Phase 3 rewritten for the pane model (`/tools/migration`, `migration.lab.hybridcloudworks.com`, hosting by the website's `addons` role, rate limiting and concurrency downstream, npm publication optional); README diagram updated; `docs/product/editions.md` gains a hosting row; the UI package README shows the same-origin default.
+
 - READMEs rewritten for the public repositories: badges, the upstream/downstream relationship diagram, release contract, repository map; `docs/README.md` and `infrastructure/README.md` indexes added. GitHub description, homepage and topics set. Removed the site-specific Copilot MCP reference config (it belongs to the website repository). npm bootstrap prepared and paused by the owner before step 1; `publish-npm.yml` stays gated (`docs/release/npm-publishing.md`).
 
 ## 0.2.1 — 2026-10-04 (Node 26 runtime floor, ADR-0029)
