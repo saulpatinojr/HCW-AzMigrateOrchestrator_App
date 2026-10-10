@@ -27,7 +27,7 @@ variable "postgres_sku" {
 }
 variable "image_ref" {
   type    = string
-  default = "ghcr.io/saulpatinojr/azure-migration-orchestrator-appliance:latest"
+  default = "docker.io/hybridcloudworks/hcw-app-migration-appliance:latest"
 }
 variable "assessment_scope_ids" {
   type        = list(string)

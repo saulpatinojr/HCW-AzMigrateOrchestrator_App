@@ -29,7 +29,7 @@ The existing website is https://hybridcloudworks.com and its repository is https
 | CSV lab API | Existing Hostinger VPS, behind host-native Caddy | Lab image from `_Addon` (built on the published core); host configuration in website repository |
 | Authenticated appliance UI and API | One Azure Container App, same origin | `_App` repository |
 | Lab image | Docker Hub `docker.io/hybridcloudworks/hcw-addon-migration`, by digest | Versioned releases from `_Addon` |
-| Appliance image | Public GHCR | Versioned releases from `_App` |
+| Appliance image | Docker Hub `docker.io/hybridcloudworks/hcw-app-migration-appliance`, by digest, through the Docker OIDC connection | Versioned releases from `_App` |
 | Reusable core and explorer packages | Public npm registry, `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui` (trusted publishing) | `_App` repository |
 | CLI downloads | GitHub Releases | `_App` repository |
 | Appliance infrastructure state | Dedicated HCP Terraform workspace | `_App` repository's project Terraform root |
@@ -69,7 +69,7 @@ The website's documented Hostinger setup uses Ansible, Docker, Caddy, and Coder.
 - [ ] Preserve browser/prerender-safe imports and document required Tailwind source scanning.
 - [x] Test the packed packages in a clean consumer project (`npm run packages:verify`; CI job `packed-consumer`): install from tarballs, run an assessment with rules resolved from inside the package, import the UI, type-check a strict consumer.
 - [ ] Configure npm trusted publishing: `publish-npm.yml` is in place (OIDC, `--provenance`, no token) and gated on `NPM_TRUSTED_PUBLISHING=ready`. **Owner action:** the registry bootstrap in `docs/release/npm-publishing.md` (create the scope, first publish from a trusted machine, configure the trusted publisher, set the variable). Bootstrap prepared 2026-10-04 (dry runs clean at `v0.2.1`: core 103 files / 76.4 kB, ui 28 files / 14.2 kB) and **paused by the owner** pending the website repository review; resume at step 1 of the runbook.
-- [ ] Publish separate lab and appliance images to public GHCR. Lab image: **done at `v0.1.3`** (workflow-scoped `GITHUB_TOKEN`, scan gate before push, provenance + SBOM). Appliance image: publishes on an `_App` tag; none cut yet. Confirm both packages are public for anonymous pulls.
+- [ ] Publish the appliance image to Docker Hub (`publish-images.yml`, moved from GHCR on 2026-10-10 to match the AddOn images; owner steps in `docs/release/docker-hub.md`). It publishes on an `_App` tag once `DOCKERHUB_ENABLED` and `DOCKERHUB_CONNECTION` are set; none cut yet. The lab image moved to Docker Hub with the AddOn's pane release (`v0.3.0`); its earlier GHCR packages (`v0.1.3`) stay where they are.
 - [x] Build, test, and scan release images before promoting a release; SBOM, provenance and digest recorded in the workflow summary (2026-10-04). The gate is proven: `v0.1.2` was blocked on a base-image CVE and nothing was pushed.
 - [x] Publish versioned CLI release assets with checksums after platform-specific smoke checks — `v0.1.2` and `v0.1.3` releases carry `amo-linux-x64`, `amo-darwin-arm64`, `amo-windows-x64.exe` and `SHA256SUMS-*.txt`, each smoke-tested (`rules validate` + sample `assess`) and attested.
 - [ ] Start at `v0.1.0`; pin the website to an exact UI version and deployments to corresponding immutable image digests. Never deploy `latest` or a moving branch as the artifact contract.
