@@ -7,7 +7,7 @@
 [![release](https://img.shields.io/github/v/release/saulpatinojr/HCW-AzMigrateOrchestrator_App?label=release)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/releases)
 [![node](https://img.shields.io/badge/node-%3E%3D26-339933?logo=node.js&logoColor=white)](docs/adr/ADR-0029-node-26-runtime-floor.md)
 [![npm](https://img.shields.io/badge/npm-%40hybridcloudworks%2Fmigration--core%20%C2%B7%20migration--ui-pending%20bootstrap-lightgrey?logo=npm)](docs/release/npm-publishing.md)
-[![ghcr](https://img.shields.io/badge/ghcr.io-azure--migration--orchestrator--appliance-2496ED?logo=docker&logoColor=white)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/pkgs/container/azure-migration-orchestrator-appliance)
+[![docker hub](https://img.shields.io/badge/docker.io-hybridcloudworks%2Fhcw--app--migration--appliance-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/hybridcloudworks/hcw-app-migration-appliance)
 [![license](https://img.shields.io/github/license/saulpatinojr/HCW-AzMigrateOrchestrator_App)](LICENSE)
 [![downstream](https://img.shields.io/badge/downstream-HCW--AzMigrateOrchestrator__Addon-6f42c1?logo=github)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon)
 
@@ -45,7 +45,7 @@ flowchart LR
   W["hybridcloudworks.com /tools/migration (pane)"]
   E -- "@hybridcloudworks/migration-core" --> L
   U -- "@hybridcloudworks/migration-ui" --> H
-  A -- "appliance image (GHCR, by digest)" --> AZ[(Azure Container App)]
+  A -- "appliance image (Docker Hub, by digest)" --> AZ[(Azure Container App)]
   C -- "release binaries + checksums" --> R[(GitHub Releases)]
   L -- "lab image (Docker Hub, by digest)" --> V[(lab host)]
   W -- "sandboxed frame, same-origin /api/*" --> L
@@ -102,7 +102,7 @@ A `v*` tag publishes, only after the checks pass:
 
 | Artifact | Where | Gate |
 |---|---|---|
-| Appliance image | `ghcr.io/saulpatinojr/azure-migration-orchestrator-appliance` | Built locally, scanned (Trivy, HIGH/CRITICAL fixed), then pushed with provenance and SBOM. Deploy by digest, never by tag |
+| Appliance image | `docker.io/hybridcloudworks/hcw-app-migration-appliance` | Built locally, scanned (Trivy, HIGH/CRITICAL fixed), then pushed through the Docker OIDC connection with provenance and SBOM (`docs/release/docker-hub.md`). Deploy by digest, never by tag |
 | CLI binaries | GitHub Releases, three platforms, with `SHA256SUMS-*.txt` and provenance | Each binary smoke-tested (`rules validate` + a sample `assess`) |
 | `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui` | npm, trusted publishing with provenance, no stored token | Clean-consumer gate; **pending the one-time owner bootstrap** in [`docs/release/npm-publishing.md`](docs/release/npm-publishing.md) |
 

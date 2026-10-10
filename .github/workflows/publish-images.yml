@@ -1,5 +1,12 @@
 # Actions are pinned to full commit SHAs (version in the trailing comment); Dependabot (github-actions ecosystem) proposes updates.
-# Appliance image. Order matters: build locally -> scan -> push. A failing scan publishes nothing. Deployments reference the digest, never a tag.
+# Appliance image docker.io/hybridcloudworks/hcw-app-migration-appliance (program decision 2026-10-09: Docker Hub only, no GHCR;
+# REFACTOR_APP.md section 7, optional item taken on 2026-10-10). Order matters: build locally -> scan -> push. A failing scan
+# publishes nothing. Deployments reference the digest this run prints, never a tag.
+#
+# Login is the Docker OIDC connection, never a long-lived token: docker/login-action v4.5.0+ with no password, registry
+# docker.io and DOCKERHUB_OIDC_CONNECTIONID set exchanges a GitHub ID token at identity.docker.com for a short-lived Docker
+# access token. The repository variables DOCKERHUB_ENABLED and DOCKERHUB_CONNECTION are owner steps (docs/release/docker-hub.md);
+# until they are set the job is skipped.
 name: publish-images
 on:
   push:
@@ -7,19 +14,31 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/azure-migration-orchestrator-appliance
+  IMAGE: docker.io/hybridcloudworks/hcw-app-migration-appliance
+  DOCKERHUB_ORG: hybridcloudworks
 jobs:
   build-scan-publish:
+    if: vars.DOCKERHUB_ENABLED == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # the Docker token exchange, and Sigstore's signing certificate
+      attestations: write
     steps:
+      # Before the builds, so a missing connection ID fails in seconds rather than after them.
+      - name: DOCKERHUB_CONNECTION holds a connection ID
+        env:
+          CONNECTION_ID: ${{ vars.DOCKERHUB_CONNECTION }}
+        run: |
+          set -euo pipefail
+          uuid='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          if [[ ! "$CONNECTION_ID" =~ $uuid ]]; then
+            echo "::error::DOCKERHUB_ENABLED is true, but the repository variable DOCKERHUB_CONNECTION is not an OIDC connection ID (a UUID, copied from the connection in Docker Home). See docs/release/docker-hub.md."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -38,6 +57,15 @@ jobs:
       - name: Scan before publishing (HIGH/CRITICAL, fixed only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with: { image-ref: "${{ env.IMAGE }}:scan", exit-code: "1", severity: "HIGH,CRITICAL", ignore-unfixed: true }
+      # After the build and the scan, so the short-lived token's life is spent on the push and the attestation alone.
+      - name: Log in to Docker Hub through the OIDC connection
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_CONNECTION }}
+          DOCKERHUB_OIDC_EXPIREIN: "900"
+        with:
+          registry: docker.io
+          username: ${{ env.DOCKERHUB_ORG }}
       - id: build
         name: Push with provenance and SBOM
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
