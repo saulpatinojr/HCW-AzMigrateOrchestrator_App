@@ -41,7 +41,9 @@ hybridcloudworks.com /tools/migration (AddOnPanePage, sandboxed <iframe>)
    |  status proxy GET /api/public/addons/migration/status  (Function App, reads /api/health, projects 6 fields)
    v
 https://migration.lab.hybridcloudworks.com   (lab host, Caddy, container hcw-addon-migration, port 18081)
-   apps/lab-web  (Vite + React pane app)  --mounts-->  <MigrationExplorer apiBaseUrl="" partners={false} onStageChange onNavigate />
+   apps/lab-web  (Vite + React pane app)  --mounts-->  <MigrationExplorer apiBaseUrl="" partners={false}
+                                                         onStageChange={(s) => reportPaneState(s === "running" ? "working" : "ready")}
+                                                         onNavigate={(path) => requestNavigate(path)} />
    apps/lab-api  (same origin /api/*)     --serves-->  AddOnHealth at GET /api/health
             ^ consumes @hybridcloudworks/migration-core and migration-ui at APP_REF = v0.3.0
 ```
@@ -51,7 +53,7 @@ After `v0.3.0`: `MigrationExplorer` renders with no props; the pane app passes `
 ## 4. Constraints
 
 - No engine, rule, limit, confidence-cap, authorization or edition-boundary change (`CLAUDE.md:17-19`). `packages/azure-*` stay unpublished.
-- Zero runtime dependencies in the published packages (ADR-0002, ADR-0029); React stays a peer (`tests/packaging/assembled-packages.test.mjs:41`).
+- The assembled core stays dependency-free (`dependencies: {}`, `tests/packaging/assembled-packages.test.mjs:22`, ADR-0002, ADR-0029) and the UI package keeps no runtime import of the core (`assembled-packages.test.mjs:42-44`); React and React DOM stay peers (`:41`). The UI package's two Radix dependencies (`packages/ui/package.json:13-14`) are existing and allowed; this release adds no new runtime dependency to any package.
 - Every new prop is optional and additive; `apps/appliance-web` and the downstream harness must compile unchanged.
 - `renderToStaticMarkup` tests must not touch `window`; no effect or fetch at module scope (`MigrationExplorer.tsx:27-30`).
 - A `packages/*` public-surface change requires `npm run packages:verify` and a PR note (`CLAUDE.md:11-14`).
@@ -75,7 +77,7 @@ After `v0.3.0`: `MigrationExplorer` renders with no props; the pane app passes `
 | A | Optional, additive explorer props: `apiBaseUrl=""`, `partners`, `cta`, `onStageChange`, `onNavigate`, `contactPath`; `Stage` and `EnterpriseCta` exported | `packages/ui` | P1 |
 | B | `AddOnHealth`, `ADDON_HEALTH_FIELDS`, `isAddOnHealth`, `ADDON_PANE_STATES`, `AddOnPaneState`, `AddOnPaneMessage` | `packages/contracts` | P1 |
 | C | `LabApiClient.health()` typed on `AddOnHealth` | `packages/ui/src/client.ts` | P1 |
-| D | Tests for A, B, C | `ui.test.tsx`, `contracts.test.ts` | P1 |
+| D | Tests for A, B, C, and the packed-consumer gate extended to use every new export | `ui.test.tsx`, `contracts.test.ts`, `scripts/verify-packed-consumer.mjs` | P1 |
 | E | ADR-0030; WORKING-PLAN Phase 3 rewrite; `CLAUDE.md` next ADR 0031 | `docs/adr`, root | P2 |
 | F | CHANGELOG 0.3.0, VALIDATION entry, README diagram, editions row, UI README text | root, `docs/product`, `scripts` | P2, P3 |
 | G | Version `0.3.0`, tag `v0.3.0` | `package.json`, `package-lock.json` | P1 |
@@ -97,7 +99,9 @@ export type Stage = "upload" | "questions" | "running" | "results";
 export interface MigrationExplorerProps {
   /** Base URL of the lab API, never the appliance. Default "" (same origin): the pane app is served by the lab API itself. */
   apiBaseUrl?: string;
-  /** Rendered inside the upload step; the host owns the Turnstile script and passes the token via getTurnstileToken. */
+  /** Rendered inside the upload step. The pane app that mounts the explorer (downstream apps/lab-web, same origin as the lab API)
+   *  owns the Turnstile script, renders the widget into this node with the site key from /api/health, and passes the token via
+   *  getTurnstileToken. The website is a cross-origin sandboxed frame host and can inject nothing into the pane. */
   turnstile?: React.ReactNode;
   getTurnstileToken?: () => string | undefined;
   /** Where the enterprise CTA links when no host handles navigation. */
@@ -117,8 +121,14 @@ export interface MigrationExplorerProps {
 
 export function MigrationExplorer({ apiBaseUrl = "", turnstile, getTurnstileToken, contactUrl = "https://hybridcloudworks.com/contact", contactPath = "/contact", partners = true, cta = true, onStageChange, onNavigate, fetchImpl }: MigrationExplorerProps) {
   // ... existing state (lines 32-42) unchanged ...
-  useEffect(() => { onStageChange?.(stage); }, [stage, onStageChange]);
+  // Notify on stage transitions only. The callback is read through a ref so an inline handler from the parent
+  // (a new function identity on every parent render) never re-fires the effect; the dependency list is [stage] alone.
+  const onStageChangeRef = useRef(onStageChange);
+  onStageChangeRef.current = onStageChange;
+  useEffect(() => { onStageChangeRef.current?.(stage); }, [stage]);
 ```
+
+Extend the React import at line 1 to `import { useCallback, useEffect, useMemo, useRef, useState } from "react";`. The downstream browser-level check for this is the AddOn's e2e: the host page records exactly one `hcw-addon` message per stage transition (`ready` on mount, `working` when the assessment starts, `ready` when results render), never a repeat for a parent rerender.
 
 Replace lines 112-116 with `{cta && <EnterpriseCta contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}` and line 119 with `{partners && <PoweredBy compact={stage !== "results"} />}`. Add the exported CTA component in the same file (the copy at lines 113-114 is kept verbatim):
 
@@ -139,7 +149,7 @@ export function EnterpriseCta({ contactUrl, contactPath, onNavigate }: Enterpris
 }
 ```
 
-Line 101 (`sampleUrl={`${apiBaseUrl}/api/sample.csv`}`) is unchanged: with the default it yields `/api/sample.csv`. The `client` memo (line 32) is unchanged: `LabApiClient` strips a trailing slash and prefixes paths, so `baseUrl: ""` is same-origin. Update the comment at line 15 to drop `labs-api.hybridcloudworks.com`.
+Line 101 (`sampleUrl={`${apiBaseUrl}/api/sample.csv`}`) is unchanged: with the default it yields `/api/sample.csv`. The `client` memo (line 32) is unchanged: `LabApiClient` strips a trailing slash and prefixes paths, so `baseUrl: ""` is same-origin. Update the comment at line 15 to drop `labs-api.hybridcloudworks.com`, and replace the comment at line 17 (which says "the host site owns the Turnstile script") with the `turnstile` doc comment above: the owner of the widget, script and token is the pane app that mounts the explorer, not the site.
 
 **Components/functions affected.** `MigrationExplorer`, new `EnterpriseCta`, `Stage` (now exported). `UploadStep`, `SummaryPanel`, `LabApiClient` unchanged.
 
@@ -167,7 +177,46 @@ Line 101 (`sampleUrl={`${apiBaseUrl}/api/sample.csv`}`) is unchanged: with the d
 export { MigrationExplorer, EnterpriseCta, type MigrationExplorerProps, type EnterpriseCtaProps, type Stage } from "./components/MigrationExplorer.js";
 ```
 
-**Components/functions affected.** Package entry only. **Tests.** Covered by the type-level use `const s: Stage = "upload"` in `ui.test.tsx` and by the strict consumer in `scripts/verify-packed-consumer.mjs:53-65`. **Acceptance criteria.** `npm run packages:verify` passes; `dist-packages/migration-ui/dist/index.d.ts` names `Stage`. **Priority.** P1. **Dependencies.** The explorer change. **Rollback.** Revert with it.
+and line 11 with:
+
+```ts
+export { LabApiClient, type LabApiClientOptions, type MigrationAddOnHealth } from "./client.js";
+```
+
+**Components/functions affected.** Package entry only. **Tests.** Covered by the type-level use `const s: Stage = "upload"` in `ui.test.tsx` and by the strict consumer in `scripts/verify-packed-consumer.mjs` once it is extended (next subsection). **Acceptance criteria.** `npm run packages:verify` passes; `dist-packages/migration-ui/dist/index.d.ts` names `Stage` and `MigrationAddOnHealth`. **Priority.** P1. **Dependencies.** The explorer and client changes. **Rollback.** Revert with them.
+
+### scripts/verify-packed-consumer.mjs
+
+**Current behavior.** The clean-consumer gate packs both packages, installs them from tarballs, runs an assessment (lines 34-50) and type-checks a strict consumer (lines 53-65) that imports `MigrationExplorer`, `Orchestrator`, `CreateAssessmentRequest`, `ResourceDecisionRecord` and `MigrationIntent` only. It would pass even if the new exports were missing from the packed declarations.
+
+**Required behavior.** The strict consumer uses every new public name, so `npm run packages:verify` is proof that the packed `.d.ts` files carry them and that the `@amo/contracts` type reference in `client.ts` was rewritten to `@hybridcloudworks/migration-core/contracts`.
+
+**Exact code-level change.** Replace the `consumer.ts` template at lines 53-63 with:
+
+```ts
+import type { ResourceDecisionRecord, MigrationIntent } from "@hybridcloudworks/migration-core/domain";
+import type { CreateAssessmentRequest, AddOnHealth, AddOnPaneMessage, AddOnPaneState } from "@hybridcloudworks/migration-core/contracts";
+import { ADDON_HEALTH_FIELDS, ADDON_PANE_STATES, isAddOnHealth } from "@hybridcloudworks/migration-core/contracts";
+import { Orchestrator } from "@hybridcloudworks/migration-core/agents";
+import { MigrationExplorer, EnterpriseCta, LabApiClient, type MigrationExplorerProps, type EnterpriseCtaProps, type Stage, type MigrationAddOnHealth } from "@hybridcloudworks/migration-ui";
+const intent: Partial<MigrationIntent> = { destinationRegion: "westus3" };
+const req: CreateAssessmentRequest = { csv: "a,b", intent };
+const o: Orchestrator = new Orchestrator({ edition: "demo" });
+const pick = (d: ResourceDecisionRecord) => d.disposition;
+const stage: Stage = "upload";
+const paneState: AddOnPaneState = ADDON_PANE_STATES[0];
+const message: AddOnPaneMessage = { type: "hcw-addon", id: "migration", state: paneState };
+const props: MigrationExplorerProps = { apiBaseUrl: "", partners: false, cta: true, contactPath: "/contact", onStageChange: (s: Stage) => void s, onNavigate: (p: string) => void p };
+const ctaProps: EnterpriseCtaProps = { contactUrl: "https://hybridcloudworks.com/contact", contactPath: "/contact" };
+const fields: readonly string[] = ADDON_HEALTH_FIELDS;
+const check = (x: unknown): x is AddOnHealth => isAddOnHealth(x);
+const health = (): Promise<MigrationAddOnHealth> => new LabApiClient({ baseUrl: "" }).health();
+export { req, o, pick, stage, message, props, ctaProps, fields, check, health, MigrationExplorer, EnterpriseCta };
+```
+
+Add to the runtime check at line 46: `if (typeof ui.EnterpriseCta !== "function") throw new Error("EnterpriseCta missing from the UI package");` and, beside the `API_LIMITS` import at line 39, `import { isAddOnHealth } from "@hybridcloudworks/migration-core/contracts";` with `if (isAddOnHealth({}) !== false) throw new Error("isAddOnHealth broken");`.
+
+**Components/functions affected.** The gate script only; `tests/packaging` unchanged. **Tests.** The script is the test; CI job `packed-consumer` runs it. **Acceptance criteria.** `npm run packages:verify` prints `packed-consumer verification passed`; removing any new export from `index.ts` makes it fail. **Priority.** P1. **Dependencies.** The `packages/ui` and `packages/contracts` changes. **Rollback.** Revert with them.
 
 ### packages/ui/src/components/PoweredBy.tsx
 
@@ -187,7 +236,7 @@ Recommendation for a later release: move `PoweredBy` and `PARTNERS` out of `pack
 
 **Required behavior.** The return type names the shared envelope plus the migration AddOn's extras, so the pane app gets `turnstile.siteKey` and `siteOrigins` typed from the same client.
 
-**Exact code-level change.**
+**Exact code-level change.** Replace the existing line 1 import with this one (it adds `AddOnHealth` to the four types already imported; never insert a second import of `@amo/contracts`), then replace lines 55-57:
 
 ```ts
 import type { AddOnHealth, ApiError, CreateAssessmentRequest, CreateAssessmentResponse, GetAssessmentResponse } from "@amo/contracts";
@@ -210,11 +259,9 @@ Export `MigrationAddOnHealth` from `index.ts` beside `LabApiClientOptions`. The 
 
 **Required behavior.** Cover the new props at the markup level. Effects and click handlers do not run under static rendering; the stage sequence and the `navigate` message are observed by the downstream e2e (section 21), and `VALIDATION.md` says so.
 
-**Exact code-level change.** Add, keeping the existing five tests:
+**Exact code-level change.** The existing import at line 4 already brings in `MigrationExplorer`, `PoweredBy`, `PARTNERS`, `previewCsv`, `LabApiClient`, `SummaryPanel` and `DecisionTable`; extend that one line by adding `EnterpriseCta` and `type Stage` to its braces (do not add a second import of `./index.js`), keep the existing five tests, and append only these test declarations:
 
 ```tsx
-import { MigrationExplorer, EnterpriseCta, PoweredBy, PARTNERS, previewCsv, LabApiClient, SummaryPanel, DecisionTable, type Stage } from "./index.js";
-
 test("MigrationExplorer renders with no props and points the sample link at the same origin", () => {
   const html = renderToStaticMarkup(<MigrationExplorer />);
   assert.ok(html.includes('href="/api/sample.csv"'));
@@ -276,9 +323,11 @@ export function isAddOnHealth(x: unknown): x is AddOnHealth {
   const t = h.turnstile;
   if (!t || typeof t !== "object") return false;
   const { required, siteKey } = t as Record<string, unknown>;
+  if (typeof required !== "boolean" || !(siteKey === null || typeof siteKey === "string")) return false;
+  // Invariant: a pane cannot initialise the widget without a key, so required implies a non-empty site key.
+  if (required && !siteKey) return false;
   return typeof h.ok === "boolean" && typeof h.id === "string" && typeof h.version === "string" && typeof h.edition === "string"
-    && strings(h.capabilities) && typeof h.asOf === "string" && strings(h.siteOrigins)
-    && typeof required === "boolean" && (siteKey === null || typeof siteKey === "string");
+    && strings(h.capabilities) && typeof h.asOf === "string" && strings(h.siteOrigins);
 }
 
 /** Pane protocol (standard section 8): AddOn to site only, one shape, four states. */
@@ -297,6 +346,8 @@ export interface AddOnPaneMessage {
 
 **Tests** (`packages/contracts/src/contracts.test.ts`):
 - `isAddOnHealth accepts the documented flat envelope with extras`
+- `isAddOnHealth accepts a not-required turnstile block with a null site key`
+- `isAddOnHealth rejects turnstile required without a site key`
 - `isAddOnHealth rejects a nested addon envelope`
 - `isAddOnHealth rejects a missing turnstile block and a non-string site origin`
 - `ADDON_HEALTH_FIELDS names exactly the eight required fields in order`
@@ -308,14 +359,19 @@ export interface AddOnPaneMessage {
 
 **Current behavior.** Five tests on `parseCreateAssessmentRequest` (lines 5-29).
 
-**Exact code-level change.** Append:
+**Exact code-level change.** Line 3 already imports `parseCreateAssessmentRequest` from `./index.js`; extend that line to `import { ADDON_HEALTH_FIELDS, ADDON_PANE_STATES, isAddOnHealth, parseCreateAssessmentRequest } from "./index.js";` (no second import), keep the existing five tests, and append only the fixture and tests below. The site key is Cloudflare's documented always-passes test key, a public value, not a secret:
 
 ```ts
-import { ADDON_HEALTH_FIELDS, ADDON_PANE_STATES, isAddOnHealth, parseCreateAssessmentRequest } from "./index.js";
-
-const health = { ok: true, id: "migration", version: "0.3.0", edition: "demo", capabilities: ["assessments", "sample-csv", "bundle-download"], asOf: "2026-10-10T00:00:00.000Z", siteOrigins: ["https://hybridcloudworks.com", "https://www.hybridcloudworks.com"], turnstile: { required: true, siteKey: null }, rulesLoaded: 35, azureConnectivity: "disabled-by-design" };
+const health = { ok: true, id: "migration", version: "0.3.0", edition: "demo", capabilities: ["assessments", "sample-csv", "bundle-download"], asOf: "2026-10-10T00:00:00.000Z", siteOrigins: ["https://hybridcloudworks.com", "https://www.hybridcloudworks.com"], turnstile: { required: true, siteKey: "1x00000000000000000000AA" }, rulesLoaded: 35, azureConnectivity: "disabled-by-design" };
 
 test("isAddOnHealth accepts the documented flat envelope with extras", () => { assert.equal(isAddOnHealth(health), true); });
+test("isAddOnHealth accepts a not-required turnstile block with a null site key", () => {
+  assert.equal(isAddOnHealth({ ...health, turnstile: { required: false, siteKey: null } }), true);
+});
+test("isAddOnHealth rejects turnstile required without a site key", () => {
+  assert.equal(isAddOnHealth({ ...health, turnstile: { required: true, siteKey: null } }), false);
+  assert.equal(isAddOnHealth({ ...health, turnstile: { required: true, siteKey: "" } }), false);
+});
 test("isAddOnHealth rejects a nested addon envelope", () => {
   const { id, version, ...rest } = health;
   assert.equal(isAddOnHealth({ ...rest, addon: { id, version } }), false);
@@ -433,7 +489,7 @@ in-frame links back to the site.
 ## Phase 3: show the explorer on the website as a pane, hosted on the existing lab host (ADR-0030)
 
 - [ ] Ship `v0.3.0` with the pane-ready `MigrationExplorer` props, the `AddOnHealth` contract and ADR-0030 (`REFACTOR_APP.md` section 7).
-- [ ] Downstream adoption: the AddOn's `core-update` workflow bumps `APP_REF` to `v0.3.0`; its pane app `_Addon/apps/lab-web` mounts `<MigrationExplorer apiBaseUrl="" partners={false} onStageChange onNavigate />` and posts `hcw-addon` messages (`loading`, `ready`, `working`, `unavailable`) to the origins in `/api/health.siteOrigins`.
+- [ ] Downstream adoption: the AddOn's `core-update` workflow bumps `APP_REF` to `v0.3.0`; its pane app `_Addon/apps/lab-web` mounts `<MigrationExplorer apiBaseUrl="" partners={false} onStageChange={(s) => reportPaneState(s === "running" ? "working" : "ready")} onNavigate={(path) => requestNavigate(path)} contactPath="/contact" />`, owns the Turnstile widget (rendered into the `turnstile` node with the site key from `/api/health`, token passed through `getTurnstileToken`), and posts `hcw-addon` messages (`loading`, `ready`, `working`, `unavailable`) to the origins in `/api/health.siteOrigins`.
 - [ ] Website route `/tools/migration` renders the generic `AddOnPanePage` for the catalogue row `migration`. The site never installs the UI package; it frames the AddOn.
 - [ ] Hostname `migration.lab.hybridcloudworks.com` under the existing `*.lab` wildcard DNS and certificate; no DNS or certificate change.
 - [ ] Image `docker.io/hybridcloudworks/hcw-addon-migration`, published by the AddOn's `publish-images.yml` after the scan gate, pinned by digest in the website's `lab-host/ansible/group_vars/all.yml`.
@@ -485,7 +541,7 @@ At release, rename the heading to `## 0.3.0 (2026-MM-DD, ADR-0030)` with the tag
 ```markdown
 ## Pane-ready explorer and AddOn health contract (2026-10-10, ADR-0030, v0.3.0)
 
-- **Executed:** `npm ci`; `npm test` (record the count the run prints: the previous 88 plus the seven new `ui` and five new `contracts` tests); `npm run rules:validate` (35 rules, snapshot unchanged); `npm run packages:verify` (public surface changed: the packed `migration-ui` declarations carry the new optional props and `Stage`; the strict consumer type-checks); `npm run web:build` (`apps/appliance-web` compiles with the unchanged `PoweredBy` and the new optional props).
+- **Executed:** `npm ci`; `npm test` (record the count the run prints: the previous 88 plus the seven new `ui` and seven new `contracts` tests); `npm run rules:validate` (35 rules, snapshot unchanged); `npm run packages:verify` (public surface changed: the packed `migration-ui` declarations carry the new optional props and `Stage`; the strict consumer type-checks); `npm run web:build` (`apps/appliance-web` compiles with the unchanged `PoweredBy` and the new optional props).
 - **Not executed here:** the stage callback sequence and the CTA click path. `renderToStaticMarkup` runs no effects and no event handlers, so `ui.test.tsx` asserts markup only (no callback during server rendering; `<button>` versus `<a>`). The sequence `loading, ready, working, ready` and the `navigate` message are observed by the downstream e2e (`_Addon/tests/e2e`, host page with the production sandbox).
 - **Limitation:** `LabApiClient.health()`'s type describes AddOn `v0.3.0` and later; against an older lab API the new fields are absent at runtime and the explorer reads only `workspace`.
 ```
@@ -539,14 +595,25 @@ None in this repository: no route in `apps/appliance-api` or the lab API changes
   "capabilities": ["assessments", "sample-csv", "bundle-download"],
   "asOf": "2026-10-10T00:00:00.000Z",
   "siteOrigins": ["https://hybridcloudworks.com", "https://www.hybridcloudworks.com"],
-  "turnstile": { "required": true, "siteKey": null },
+  "turnstile": { "required": true, "siteKey": "1x00000000000000000000AA" },
   "rulesLoaded": 35,
   "azureConnectivity": "disabled-by-design",
   "workspace": "disabled"
 }
 ```
 
-Rules: 200 within one second with no upstream dependency; `ok: false` with 503 when the rule corpus failed to load; `id` and `version` flat, never under `addon`; extras allowed (`rulesLoaded`, `azureConnectivity`, `workspace`) and ignored by the website, whose proxy forwards exactly `configured, reachable, version, edition, capabilities, asOf`. The appliance's own `/api/health` (`apps/appliance-api/src/index.ts:71`, `edition: "enterprise"`) is unchanged and is never framed.
+Rules: 200 within one second with no upstream dependency; `ok: false` with 503 when the rule corpus failed to load; `id` and `version` flat, never under `addon`; `turnstile.siteKey` is the public widget key (the value above is Cloudflare's documented always-passes test key; production carries the real public site key from `AMO_TURNSTILE_SITE_KEY`) and must be non-empty whenever `required` is true; extras allowed (`rulesLoaded`, `azureConnectivity`, `workspace`) and ignored by the website.
+
+The website's status proxy answers `{ configured, reachable, version, edition, capabilities, asOf }` and derives the two flags itself; neither is in the health body:
+
+| Proxy field | Derivation |
+|---|---|
+| `configured` | `true` when the Function App setting `ADDON_MIGRATION_URL` is present, resolved and `https:`; otherwise the answer is `{ configured: false }` with no network call |
+| `reachable` | `true` when a `GET` of the setting's value followed by `/api/health` returned HTTP 200 with a JSON body whose `ok` is `true`, within 5 seconds, without a redirect; otherwise `false` with `version: null`, `edition: null`, `capabilities: []` |
+| `version`, `edition`, `capabilities`, `asOf` | Copied from the health body (`version` must match `^\d+\.\d+\.\d+`; strings capped at 40 characters, at most 20 capabilities) |
+| anything else | Never forwarded: not `siteOrigins`, not `turnstile`, not the extras, not the URL |
+
+The appliance's own `/api/health` (`apps/appliance-api/src/index.ts:71`, `edition: "enterprise"`) is unchanged and is never framed.
 
 ## 9. Required data contract changes
 
@@ -578,7 +645,8 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 - No boundary change. `azure-auth`, `azure-arm`, `azure-execution` stay unpublished; `tests/security/appliance-boundary.test.mjs` and `tests/packaging` are unchanged and must stay green.
 - `onNavigate` never receives an API-supplied value. Its only argument is `contactPath`, a literal the host passes as a prop (default `"/contact"`). The explorer must not derive a navigation target from any response body, and the website's page honours `navigate` only from its own allow-list.
 - `partners={false}` is copy only. It removes vendor names from visitor-visible text; it does not alter requests, headers or data flow.
-- `isAddOnHealth` is structural. It does not trust `siteOrigins` or `siteKey` beyond their types; the downstream pane posts only to origins the AddOn's own environment listed, and the website's proxy applies its length and regex limits independently.
+- `isAddOnHealth` is structural plus one invariant (`turnstile.required` implies a non-empty public `siteKey`, so a pane never runs an unverifiable upload path). It does not trust `siteOrigins` or `siteKey` beyond that; the downstream pane posts only to origins the AddOn's own environment listed, and the website's proxy applies its length and regex limits independently. The site key is public by design; the secret never leaves the lab host's vault.
+- The Turnstile widget, script and token are owned by the downstream pane app, same origin as the lab API. The website cannot and does not inject anything into the cross-origin sandboxed frame.
 - The CTA button has `type="button"` so it never submits a surrounding form.
 - Nothing new reads `window`, storage or the clock during render; the stage effect is client-only.
 
@@ -586,7 +654,7 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 
 | Command | Why | Required |
 |---|---|---|
-| `npm test` | Builds everything and runs the unit, golden, packaging and security suites, including the twelve new tests | Yes |
+| `npm test` | Builds everything and runs the unit, golden, packaging and security suites, including the fourteen new tests | Yes |
 | `npm run rules:validate` | `CLAUDE.md:11` requires it before claiming anything works, even though rules do not change | Yes |
 | `npm run packages:verify` | The public surface of both packages changes (`CLAUDE.md:11-12`); the packed consumer must import `MigrationExplorer` and type-check against the new declarations | Yes |
 | `npm run web:build` | `apps/appliance-web` still compiles with the unchanged `PoweredBy` import and the widened props | Yes |
@@ -597,7 +665,7 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 
 1. Branch from `main` at or after `ef4a515`.
 2. `packages/contracts`: add the health and pane types and their five tests.
-3. `packages/ui`: explorer props, `EnterpriseCta`, `Stage` export, `index.ts`, `client.ts`, seven tests.
+3. `packages/ui`: explorer props, `EnterpriseCta`, `Stage` export, `index.ts`, `client.ts`, seven tests; `scripts/verify-packed-consumer.mjs` strict consumer extended.
 4. `scripts/assemble-packages.mjs` README text; `README.md` diagram; `docs/product/editions.md` row.
 5. `docs/adr/ADR-0030-web-front-edition-runs-as-a-site-pane.md`; `CLAUDE.md` next number 0031; `WORKING-PLAN.md` Phase 3 and hosting table.
 6. `CHANGELOG.md` and `VALIDATION.md` entries.
@@ -627,6 +695,7 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 |---|---|---|---|
 | P1 | Health and pane types with tests | `packages/contracts/src/index.ts`, `contracts.test.ts` | none |
 | P1 | Explorer props, `EnterpriseCta`, `Stage` export, `index.ts`, `client.ts`, tests | `packages/ui/src/**` | contracts |
+| P1 | Packed-consumer gate uses every new export | `scripts/verify-packed-consumer.mjs` | ui, contracts |
 | P1 | Version `0.3.0`, PR, tag | `package.json`, `package-lock.json` | all P1 |
 | P2 | ADR-0030, `CLAUDE.md` 0031, WORKING-PLAN Phase 3 | `docs/adr`, root | none |
 | P2 | CHANGELOG, VALIDATION entries | root | section 20 runs |
@@ -639,8 +708,9 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 1. `renderToStaticMarkup(<MigrationExplorer />)` renders without props and links the sample at `/api/sample.csv`.
 2. With `partners={false}` the markup contains no `PARTNERS[*].name` and no "Powered by"; by default it still does.
 3. `EnterpriseCta` with `onNavigate` renders a `<button type="button">` and no `href`; without it, the `<a href={contactUrl}>`.
-4. No `onStageChange` call happens during server rendering; the client effect fires on every `stage` change (observed downstream as `questions`, `running`, `results`).
-5. `isAddOnHealth` accepts the flat envelope with extras and rejects the nested `addon` form; `ADDON_HEALTH_FIELDS` and `ADDON_PANE_STATES` match sections 8 and 9.
+4. No `onStageChange` call happens during server rendering; the client effect fires once per `stage` transition and not on parent rerenders (observed downstream as one message per transition: `questions`, `running`, `results`).
+5. `isAddOnHealth` accepts the flat envelope with extras, rejects the nested `addon` form and rejects `required: true` with a null or empty `siteKey`; `ADDON_HEALTH_FIELDS` and `ADDON_PANE_STATES` match sections 8 and 9.
+10. `npm run packages:verify` fails when any of `Stage`, `EnterpriseCta`, `EnterpriseCtaProps`, `MigrationAddOnHealth`, `AddOnHealth`, `isAddOnHealth`, `ADDON_HEALTH_FIELDS`, `ADDON_PANE_STATES` or `AddOnPaneMessage` is missing from the packed declarations.
 6. `npm test`, `npm run rules:validate`, `npm run packages:verify` and `npm run web:build` pass; CI green on the release head.
 7. ADR-0030 exists in house style; `CLAUDE.md` says next ADR 0031; WORKING-PLAN Phase 3 contains no "do not frame" line and names `/tools/migration`, `migration.lab.hybridcloudworks.com`, `docker.io/hybridcloudworks/hcw-addon-migration`, the `addons` role and `_Addon/apps/lab-web`.
 8. `dist-packages/migration-ui/README.md` contains no `migration-api.lab`.
@@ -648,18 +718,18 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 
 ## 20. Validation commands or procedures
 
-Run from the repository root on Node 26 or newer. Success looks like: `npm test` ends with `fail 0`; `rules:validate` prints `35 rules` and no issues; `packages:verify` prints `packed-consumer verification passed`; `web:build` ends with the Vite `built in` line; the final `grep` prints `0`.
+Run from the repository root on Node 26 or newer. Each line stops at the first failed check and ends by failing unless the retired hostname is absent from the packed UI README. Success looks like: `npm test` ends with `fail 0`; `rules:validate` prints `35 rules` and no issues; `packages:verify` prints `packed-consumer verification passed`; `web:build` ends with the Vite `built in` line; the last command prints `README clean` and the shell's exit code is `0`. A missing README (the build did not run) is reported as a file-read error, not as a clean result.
 
 PowerShell:
 
 ```powershell
-npm ci; npm test; npm run rules:validate; npm run packages:verify; npm run web:build; Select-String -Path dist-packages/migration-ui/README.md -Pattern "migration-api.lab" | Measure-Object | Select-Object -ExpandProperty Count
+$ErrorActionPreference = 'Stop'; npm ci; if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }; npm test; if ($LASTEXITCODE -ne 0) { throw "npm test failed" }; npm run rules:validate; if ($LASTEXITCODE -ne 0) { throw "rules:validate failed" }; npm run packages:verify; if ($LASTEXITCODE -ne 0) { throw "packages:verify failed" }; npm run web:build; if ($LASTEXITCODE -ne 0) { throw "web:build failed" }; $readme = Get-Content -Raw -Path dist-packages/migration-ui/README.md; $hits = ([regex]::Matches($readme, 'migration-api\.lab')).Count; if ($hits -ne 0) { throw "retired hostname still in the UI README ($hits occurrences)" }; Write-Output "README clean"
 ```
 
 bash (Git Bash):
 
 ```bash
-npm ci && npm test && npm run rules:validate && npm run packages:verify && npm run web:build && grep -c "migration-api.lab" dist-packages/migration-ui/README.md; true
+set -euo pipefail && npm ci && npm test && npm run rules:validate && npm run packages:verify && npm run web:build && readme="$(cat dist-packages/migration-ui/README.md)" && hits="$(printf '%s' "$readme" | grep -c 'migration-api\.lab' || true)" && [ "$hits" -eq 0 ] && echo "README clean"
 ```
 
 Release, after the PR is merged and `main` is checked out (both shells):
@@ -676,7 +746,7 @@ Success: `gh release list` or the Actions page shows `publish-images` and `relea
 
 ## 21. Dependencies on AddOn work
 
-- The AddOn's pane app (`_Addon/apps/lab-web`, Vite + React, replacing `apps/ui-harness`) consumes the new props: `<MigrationExplorer apiBaseUrl="" turnstile={...} getTurnstileToken={getToken} partners={false} onStageChange={(s) => reportPaneState(s === "running" ? "working" : "ready")} onNavigate={requestNavigate} contactPath="/contact" />`.
+- The AddOn's pane app (`_Addon/apps/lab-web`, Vite + React, replacing `apps/ui-harness`) consumes the new props: `<MigrationExplorer apiBaseUrl="" turnstile={<div ref={turnstileNode} />} getTurnstileToken={getToken} partners={false} onStageChange={(s) => reportPaneState(s === "running" ? "working" : "ready")} onNavigate={(path) => requestNavigate(path)} contactPath="/contact" />`. The pane app owns the Turnstile script, widget and token (`src/turnstile.ts`: loads the script, renders into the node with `turnstile.siteKey` from `/api/health`, keeps the token in a ref and re-renders on expiry); the website, a cross-origin sandboxed frame host, injects nothing into the pane.
 - Until `APP_REF` reaches `v0.3.0`, the AddOn mounts the explorer as it is today and hides `[aria-label="Powered by"]` with CSS (interim, recorded in its `VALIDATION.md`); the CTA stays an in-frame link that the site blocks, so the AddOn also hides it in the interim.
 - The AddOn's lab API serves `AddOnHealth` (section 8) and imports `isAddOnHealth` from `@hybridcloudworks/migration-core/contracts` for its own contract test once `v0.3.0` is adopted.
 - The AddOn's e2e observes the stage sequence and the `navigate` message that this repository's static tests cannot.
