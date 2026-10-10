@@ -1,7 +1,7 @@
 # Working plan: public migration project, website integration, and Azure appliance
 
 Status: Phase 1 largely done, Phase 2 in progress.  
-Created: 2026-10-03. Updated: 2026-10-04 (ADR-0027 split; ADR-0028 flip — this repository is the upstream product).  
+Created: 2026-10-03. Updated: 2026-10-04 (ADR-0027 split; ADR-0028 flip — this repository is the upstream product). Updated: 2026-10-10 (ADR-0030, pane model).  
 Owner: HybridCloudWorks.  
 Update this checklist as work is verified. Move completed-work summaries to `CHANGELOG.md`, record limitations in `VALIDATION.md`, and link open work to GitHub issues once the repository is published.
 
@@ -25,10 +25,10 @@ The existing website is https://hybridcloudworks.com and its repository is https
 | --- | --- | --- |
 | Engine packages, rules, CLI, UI components, appliance API/web/worker, `azure-*` packages, appliance Terraform, canonical ADRs, this plan | Public `saulpatinojr/HCW-AzMigrateOrchestrator_App` (upstream) | `_App` repository |
 | Lab API, lab web harness, browser e2e, lab Terraform, Coder template, partner and website-integration docs | Public `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` (downstream) | `_Addon` repository |
-| Website pages and embedded React explorer | Existing Azure Static Web Apps website | Website repository |
+| Website page `/tools/migration` framing the downstream pane | Existing Azure Static Web Apps website | Website repository |
 | CSV lab API | Existing Hostinger VPS, behind host-native Caddy | Lab image from `_Addon` (built on the published core); host configuration in website repository |
 | Authenticated appliance UI and API | One Azure Container App, same origin | `_App` repository |
-| Lab image | Public GitHub Container Registry (GHCR) | Versioned releases from `_Addon` |
+| Lab image | Docker Hub `docker.io/hybridcloudworks/hcw-addon-migration`, by digest | Versioned releases from `_Addon` |
 | Appliance image | Public GHCR | Versioned releases from `_App` |
 | Reusable core and explorer packages | Public npm registry, `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui` (trusted publishing) | `_App` repository |
 | CLI downloads | GitHub Releases | `_App` repository |
@@ -74,20 +74,20 @@ The website's documented Hostinger setup uses Ansible, Docker, Caddy, and Coder.
 - [x] Publish versioned CLI release assets with checksums after platform-specific smoke checks — `v0.1.2` and `v0.1.3` releases carry `amo-linux-x64`, `amo-darwin-arm64`, `amo-windows-x64.exe` and `SHA256SUMS-*.txt`, each smoke-tested (`rules validate` + sample `assess`) and attested.
 - [ ] Start at `v0.1.0`; pin the website to an exact UI version and deployments to corresponding immutable image digests. Never deploy `latest` or a moving branch as the artifact contract.
 
-## Phase 3 — Add the explorer to the website and reuse Hostinger
+## Phase 3: show the explorer on the website as a pane, hosted on the existing lab host (ADR-0030)
 
-- [ ] **Site repository review (next):** review `HCW-AzMigrateOrchestrator_Addon/docs/website-integration/*` and `docs/api/openapi.yaml` against the website repository's route inventory, Tailwind entry, Turnstile wiring and the lab-host Ansible/Caddy model; decide the lab API hostname and the exact UI version to pin. The site cannot install the UI package until the npm bootstrap above is done.
-- [ ] Add the introduction, assessment, and explorer routes to the website's actual route and content inventories. Use the proposed `/education/migration-labs` route family after checking for existing collisions and navigation conventions.
-- [ ] Lazy-load the React explorer directly in the website. Preserve prerendering and add the public package to Tailwind source scanning; do not frame a second explorer UI.
-- [ ] Configure `migration-api.lab.hybridcloudworks.com` using the existing lab wildcard DNS/certificate arrangement. Verify the hostname and VPS capacity before deployment.
-- [ ] Add an Ansible-managed lab API container through the website's host configuration. Use a loopback-only published port and a Caddy `/api/*` reverse-proxy route. Preserve existing direct-browsing/panes policies and unrelated services.
-- [ ] Keep the container non-root, read-only, capability-restricted, resource-limited, and health-checked with bounded logs. Mount neither the Docker socket nor host credential directories.
-- [ ] Require Turnstile for uploads and exact-origin CORS for `https://hybridcloudworks.com` and `https://www.hybridcloudworks.com`.
-- [ ] Preserve 5 MB/5,000-row input limits, owner-token isolation, a default 120-minute TTL, bounded memory storage, and explicit deletion.
-- [ ] Add bounded assessment concurrency and application-level request limiting so abuse controls do not depend on Cloudflare plan entitlements. Include overload responses and recovery checks in acceptance tests.
-- [ ] Keep telemetry and Coder workspace creation off initially. Present upload processing, expiration, and restart-related deletion clearly beside the upload control.
-- [ ] Store host runtime secrets through the existing host secret-management process. Keep public API URLs and Turnstile site keys in public configuration; secret values must not enter Vite bundles, Git, Terraform state, or logs.
-- [ ] Roll back through the previous pinned UI version and API image digest using reviewed host configuration changes.
+- [ ] Ship `v0.3.0` with the pane-ready `MigrationExplorer` props, the `AddOnHealth` contract and ADR-0030 (`REFACTOR_APP.md` section 7).
+- [ ] Downstream adoption: the AddOn's `core-update` workflow bumps `APP_REF` to `v0.3.0`; its pane app `_Addon/apps/lab-web` mounts `<MigrationExplorer apiBaseUrl="" partners={false} onStageChange={(s) => reportPaneState(s === "running" ? "working" : "ready")} onNavigate={(path) => requestNavigate(path)} contactPath="/contact" />`, owns the Turnstile widget (rendered into the `turnstile` node with the site key from `/api/health`, token passed through `getTurnstileToken`), and posts `hcw-addon` messages (`loading`, `ready`, `working`, `unavailable`) to the origins in `/api/health.siteOrigins`.
+- [ ] Website route `/tools/migration` renders the generic `AddOnPanePage` for the catalogue row `migration`. The site never installs the UI package; it frames the AddOn.
+- [ ] Hostname `migration.lab.hybridcloudworks.com` under the existing `*.lab` wildcard DNS and certificate; no DNS or certificate change.
+- [ ] Image `docker.io/hybridcloudworks/hcw-addon-migration`, published by the AddOn's `publish-images.yml` after the scan gate, pinned by digest in the website's `lab-host/ansible/group_vars/all.yml`.
+- [ ] Hosting by the website's `addons` Ansible role: loopback port 18081, hardened `docker_container` (non-root, read-only, capabilities dropped, memory and pids limits, bounded logs, no socket), Caddy route with the site-only `frame-ancestors`, health wait, rollback by the previous digest.
+- [ ] Turnstile on uploads with the site key published by `/api/health`; the exact-origin CORS list may be empty because the pane is same-origin with its API.
+- [ ] 5 MB/5,000-row limits, owner-token isolation, 120-minute TTL, bounded memory storage and explicit deletion preserved (unchanged upstream and downstream).
+- [ ] Rate limiting and bounded assessment concurrency: moved downstream to `_Addon/apps/lab-api` (`429 rate_limited`, `503 overloaded`, both with `Retry-After`) and done there; nothing in this repository.
+- [ ] Telemetry and Coder workspace creation off; upload processing, expiry and restart deletion stated in the pane beside the upload control.
+- [ ] Host secrets through the website's vault (`vault_addon_migration_turnstile_secret`); public values in `group_vars`; nothing in Vite bundles, Git, Terraform state or logs.
+- [ ] npm publication of `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui` is optional for this phase; the `file:` link and `APP_REF` stay the contract until the owner resumes the bootstrap.
 
 ## Phase 4 — Deploy a small read-only Azure appliance
 

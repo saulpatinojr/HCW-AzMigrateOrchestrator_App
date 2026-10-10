@@ -107,7 +107,10 @@ React 19 components of the Migration Explorer (${REPO}, \`packages/ui\`). Peer d
 
 \`\`\`jsx
 import { MigrationExplorer } from "${UI_NAME}";
-<MigrationExplorer apiBaseUrl="https://migration-api.lab.example.com" />
+// Same origin (apiBaseUrl defaults to ""): mount it from the page the lab API serves. Inside a host's sandboxed pane,
+// pass partners={false}, onStageChange to report "working" while an assessment runs, and onNavigate so the
+// enterprise CTA hands a site path to the host instead of navigating the frame.
+<MigrationExplorer />
 \`\`\`
 
 Styling uses Tailwind utility classes; add the package to your Tailwind source scan: \`@source "../node_modules/${UI_NAME}/dist";\` (path relative to your CSS entry). Types reference \`${CORE_NAME}\` (installed as a dependency); there is no runtime import of it.

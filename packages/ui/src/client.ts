@@ -1,4 +1,7 @@
-import type { CreateAssessmentRequest, CreateAssessmentResponse, GetAssessmentResponse, ApiError } from "@amo/contracts";
+import type { AddOnHealth, ApiError, CreateAssessmentRequest, CreateAssessmentResponse, GetAssessmentResponse } from "@amo/contracts";
+
+/** The migration AddOn's health: the shared envelope plus its own extras. Not validated here; call isAddOnHealth when the shape matters. */
+export type MigrationAddOnHealth = AddOnHealth & { workspace?: string; rulesLoaded?: number; azureConnectivity?: string };
 
 export interface LabApiClientOptions {
   baseUrl: string;
@@ -52,7 +55,7 @@ export class LabApiClient {
     const res = await this.call<Response>(`/api/assessments/${this.assessmentId}/bundle.zip`, {}, true);
     return res.blob();
   }
-  async health(): Promise<{ ok: boolean; workspace?: string }> {
+  async health(): Promise<MigrationAddOnHealth> {
     return this.call("/api/health");
   }
   async openWorkspace(): Promise<{ workspaceId: string; status: string; launchUrl: string | null; expiresAt: string | null }> {

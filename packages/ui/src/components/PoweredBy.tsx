@@ -1,4 +1,5 @@
 /** Partner showcase. Keep this list honest: every entry names what the provider actually does in the lab. */
+/** Not rendered in the HCW site pane (MigrationExplorer partners={false}); the appliance web shows it. */
 export const PARTNERS = [
   { name: "Microsoft Azure", role: "Decision rules derive from Microsoft Learn move-support and relocation guidance; the appliance edition targets Azure.", url: "https://learn.microsoft.com/azure/azure-resource-manager/management/move-support-resources" },
   { name: "Hostinger", role: "Hosts the lab API on a KVM VPS provisioned with Terraform and run with Docker.", url: "https://www.hostinger.com/vps-hosting" },

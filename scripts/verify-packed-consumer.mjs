@@ -36,7 +36,7 @@ try {
 import { readFileSync } from "node:fs";
 import { Orchestrator } from "@hybridcloudworks/migration-core/agents";
 import { defaultRulesDir } from "@hybridcloudworks/migration-core/evidence-engine";
-import { API_LIMITS } from "@hybridcloudworks/migration-core/contracts";
+import { API_LIMITS, isAddOnHealth } from "@hybridcloudworks/migration-core/contracts";
 import * as ui from "@hybridcloudworks/migration-ui";
 const rulesDir = defaultRulesDir();
 if (!rulesDir.replace(/\\\\/g, "/").includes("node_modules/@hybridcloudworks/migration-core/rules")) throw new Error("rules not resolved from the package: " + rulesDir);
@@ -44,6 +44,8 @@ const o = new Orchestrator({ edition: "demo", now: () => new Date("2026-10-04T00
 const { assessment, bundle } = await o.assessCsv(readFileSync("sample.csv", "utf8"), { destinationRegion: "westus3", sameTenant: true, sameSubscription: true, downtimeTolerance: "hours" });
 if (!assessment || Object.keys(bundle.files).length < 10) throw new Error("assessment produced no bundle");
 if (typeof ui.MigrationExplorer !== "function") throw new Error("MigrationExplorer missing from the UI package");
+if (typeof ui.EnterpriseCta !== "function") throw new Error("EnterpriseCta missing from the UI package");
+if (isAddOnHealth({}) !== false) throw new Error("isAddOnHealth broken");
 if (!API_LIMITS.maxUploadBytes) throw new Error("contracts subpath broken");
 console.log("consumer ok:", assessment.decisions?.length ?? Object.keys(bundle.files).length, "decisions/files; rules from", rulesDir);
 `);
@@ -52,14 +54,23 @@ console.log("consumer ok:", assessment.decisions?.length ?? Object.keys(bundle.f
   // 3. types: a strict consumer compiles against the installed declarations
   writeFileSync(join(proj, "consumer.ts"), `
 import type { ResourceDecisionRecord, MigrationIntent } from "@hybridcloudworks/migration-core/domain";
-import type { CreateAssessmentRequest } from "@hybridcloudworks/migration-core/contracts";
+import type { CreateAssessmentRequest, AddOnHealth, AddOnPaneMessage, AddOnPaneState } from "@hybridcloudworks/migration-core/contracts";
+import { ADDON_HEALTH_FIELDS, ADDON_PANE_STATES, isAddOnHealth } from "@hybridcloudworks/migration-core/contracts";
 import { Orchestrator } from "@hybridcloudworks/migration-core/agents";
-import { MigrationExplorer } from "@hybridcloudworks/migration-ui";
+import { MigrationExplorer, EnterpriseCta, LabApiClient, type MigrationExplorerProps, type EnterpriseCtaProps, type Stage, type MigrationAddOnHealth } from "@hybridcloudworks/migration-ui";
 const intent: Partial<MigrationIntent> = { destinationRegion: "westus3" };
 const req: CreateAssessmentRequest = { csv: "a,b", intent };
 const o: Orchestrator = new Orchestrator({ edition: "demo" });
 const pick = (d: ResourceDecisionRecord) => d.disposition;
-export { req, o, pick, MigrationExplorer };
+const stage: Stage = "upload";
+const paneState: AddOnPaneState = ADDON_PANE_STATES[0];
+const message: AddOnPaneMessage = { type: "hcw-addon", id: "migration", state: paneState };
+const props: MigrationExplorerProps = { apiBaseUrl: "", partners: false, cta: true, contactPath: "/contact", onStageChange: (s: Stage) => void s, onNavigate: (p: string) => void p };
+const ctaProps: EnterpriseCtaProps = { contactUrl: "https://hybridcloudworks.com/contact", contactPath: "/contact" };
+const fields: readonly string[] = ADDON_HEALTH_FIELDS;
+const check = (x: unknown): x is AddOnHealth => isAddOnHealth(x);
+const health = (): Promise<MigrationAddOnHealth> => new LabApiClient({ baseUrl: "" }).health();
+export { req, o, pick, stage, message, props, ctaProps, fields, check, health, MigrationExplorer, EnterpriseCta };
 `);
   writeFileSync(join(proj, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "Node16", moduleResolution: "Node16", strict: true, jsx: "react-jsx", noEmit: true, skipLibCheck: true, types: [] }, files: ["consumer.ts"] }));
   run("node", [join(ROOT, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"], proj);

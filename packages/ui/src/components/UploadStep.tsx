@@ -5,7 +5,7 @@ export interface UploadStepProps {
   sampleUrl: string;
   maxBytes?: number;
   onFile: (csv: string, fileName: string) => void;
-  /** Optional Turnstile slot rendered by the host site (keeps the widget script out of this package). */
+  /** Optional Turnstile slot rendered by whoever mounts the explorer: the AddOn's pane app, which owns the widget script and token (ADR-0030). Keeps the widget script out of this package. */
   turnstile?: React.ReactNode;
 }
 

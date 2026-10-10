@@ -100,9 +100,15 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Not executed locally:** GitHub-hosted runners on Node 26 (first exercised by the CI run of the Node 26 commit and by the `v0.2.1` release workflows — see their run links in the plan); Linux/macOS CLI builds (release matrix); the devcontainer image pull.
 - **Note:** earlier sections that say "CI targets Node 22" describe runs before this change.
 
+## Pane-ready explorer and AddOn health contract (2026-10-10, ADR-0030, v0.3.0)
+
+- **Executed (Linux, Node 26.11, npm 10.9):** `npm ci`; `npm test` — 104 pass (the previous 88 plus nine new `ui` tests and seven new `contracts` tests); `npm run rules:validate` (35 rules, snapshot 1.0.35 unchanged); `npm run packages:verify` (public surface changed: the packed `migration-ui` declarations carry the new optional props, `Stage`, `ResultsStage`, `EnterpriseCta` and `MigrationAddOnHealth`; the packed `migration-core/contracts` declarations carry `AddOnHealth`, `isAddOnHealth` and `AddOnPaneMessage`; the strict consumer type-checks and runs); `npm run web:build` (`apps/appliance-web` compiles with the unchanged `PoweredBy` and the new optional props); `grep -c "migration-api.lab" dist-packages/migration-ui/README.md` prints 0.
+- **Not executed here:** the stage callback sequence and the CTA click path. `renderToStaticMarkup` runs no effects and no event handlers, so `ui.test.tsx` asserts markup only (no callback during server rendering; `<button>` versus `<a>`). The sequence `loading, ready, working, ready` and the `navigate` message are observed by the downstream e2e (`_Addon/tests/e2e`, host page with the production sandbox).
+- **Limitation:** `LabApiClient.health()`'s type describes AddOn `v0.3.0` and later; against an older lab API the new fields are absent at runtime and the explorer reads only `workspace`.
+
 ## Not implemented
 
-Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTML reports; rate limiting at the API (recommended at Caddy); persistence of enterprise assessments; cost/capacity live checks (agent defined, returns unknown without authenticated APIs).
+Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTML reports; rate limiting and concurrency bounds (delivered downstream in `_Addon/apps/lab-api`, ADR-0030); persistence of enterprise assessments; cost/capacity live checks (agent defined, returns unknown without authenticated APIs).
 
 ## How to complete runtime validation
 
