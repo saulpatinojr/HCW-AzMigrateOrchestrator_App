@@ -128,9 +128,32 @@ export function MigrationExplorer({ apiBaseUrl = "", turnstile, getTurnstileToke
   useEffect(() => { onStageChangeRef.current?.(stage); }, [stage]);
 ```
 
-Extend the React import at line 1 to `import { useCallback, useEffect, useMemo, useRef, useState } from "react";`. The downstream browser-level check for this is the AddOn's e2e: the host page records exactly one `hcw-addon` message per stage transition (`ready` on mount, `working` when the assessment starts, `ready` when results render), never a repeat for a parent rerender.
+Extend the React import at line 1 to `import { useCallback, useEffect, useMemo, useRef, useState } from "react";`. This effect reports every stage change, including `upload → questions` when a file is chosen; deduplication is the pane's job, not the explorer's. The downstream reporter (`apps/lab-web/src/pane.ts`, `reportPaneState`) posts a message only when the *mapped* state changes, so `upload` and `questions` (both `ready`) produce one `ready`, a run produces `working` then `ready`, and a failed run that returns to `questions` produces exactly one `ready` after `working`. The downstream browser-level check is the AddOn's e2e: the host page records exactly one `hcw-addon` message per mapped transition (`ready` on mount, `working` when the assessment starts, `ready` when results or the error render), never a repeat for a parent rerender or for a stage change that maps to the same state.
 
-Replace lines 112-116 with `{cta && <EnterpriseCta contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}` and line 119 with `{partners && <PoweredBy compact={stage !== "results"} />}`. Add the exported CTA component in the same file (the copy at lines 113-114 is kept verbatim):
+Replace lines 105-117 (the `stage === "results" && assessment` fragment) with one element, `{stage === "results" && assessment && <ResultsStage assessment={assessment} expiresAt={expiresAt} files={files} loadFile={(p) => client.file(p)} onDownload={download} onDelete={remove} onOpenWorkspace={workspaceAvailable ? openWorkspace : undefined} workspaceBusy={workspaceBusy} cta={cta} contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}`, and line 119 with `{partners && <PoweredBy compact={stage !== "results"} />}`. `ResultsStage` is the former fragment made an exported, state-free-at-the-boundary component so the results markup can be rendered without driving an upload; it owns the `selected` decision state (moved from the explorer, lines 40 and 108-109) and renders `{cta && <EnterpriseCta contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}` where the CTA section stood:
+
+```tsx
+export interface ResultsStageProps {
+  assessment: Assessment; expiresAt: string | null; files: string[]; loadFile: (path: string) => Promise<string>;
+  onDownload: () => void; onDelete: () => void; onOpenWorkspace?: () => void; workspaceBusy?: boolean;
+  cta?: boolean; contactUrl: string; contactPath: string; onNavigate?: (path: string) => void;
+}
+export function ResultsStage({ assessment, expiresAt, files, loadFile, onDownload, onDelete, onOpenWorkspace, workspaceBusy, cta = true, contactUrl, contactPath, onNavigate }: ResultsStageProps) {
+  const [selected, setSelected] = useState<ResourceDecisionRecord | null>(null);
+  return (
+    <>
+      <SummaryPanel summary={assessment.summary} expiresAt={expiresAt} onDownload={onDownload} onDelete={onDelete} onOpenWorkspace={onOpenWorkspace} workspaceBusy={workspaceBusy} />
+      <DecisionTable decisions={assessment.decisions} onSelect={setSelected} />
+      <DecisionDetail decision={selected} onClose={() => setSelected(null)} />
+      <WavePlanView plan={assessment.wavePlan} decisions={assessment.decisions} />
+      <GeneratedFiles files={files} load={loadFile} />
+      {cta && <EnterpriseCta contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}
+    </>
+  );
+}
+```
+
+Add the exported CTA component in the same file (the copy at lines 113-114 is kept verbatim):
 
 ```tsx
 export interface EnterpriseCtaProps { contactUrl: string; contactPath: string; onNavigate?: (path: string) => void }
@@ -151,17 +174,19 @@ export function EnterpriseCta({ contactUrl, contactPath, onNavigate }: Enterpris
 
 Line 101 (`sampleUrl={`${apiBaseUrl}/api/sample.csv`}`) is unchanged: with the default it yields `/api/sample.csv`. The `client` memo (line 32) is unchanged: `LabApiClient` strips a trailing slash and prefixes paths, so `baseUrl: ""` is same-origin. Update the comment at line 15 to drop `labs-api.hybridcloudworks.com`, and replace the comment at line 17 (which says "the host site owns the Turnstile script") with the `turnstile` doc comment above: the owner of the widget, script and token is the pane app that mounts the explorer, not the site.
 
-**Components/functions affected.** `MigrationExplorer`, new `EnterpriseCta`, `Stage` (now exported). `UploadStep`, `SummaryPanel`, `LabApiClient` unchanged.
+**Components/functions affected.** `MigrationExplorer`, new `ResultsStage` and `EnterpriseCta`, `Stage` (now exported). `UploadStep`: the doc comment on `UploadStepProps.turnstile` (`packages/ui/src/components/UploadStep.tsx:8`, "rendered by the host site") becomes "rendered by whoever mounts the explorer: the AddOn's pane app, which owns the widget script and token (ADR-0030)"; no code change. `SummaryPanel`, `LabApiClient` unchanged.
 
 **Tests** (`packages/ui/src/ui.test.tsx`):
 - `MigrationExplorer renders with no props and points the sample link at the same origin`
 - `MigrationExplorer renders the partner panel by default`
 - `MigrationExplorer with partners={false} renders no partner name and no "Powered by"`
 - `MigrationExplorer calls no stage callback during server rendering`
+- `ResultsStage renders the enterprise CTA by default` (`renderToStaticMarkup(<ResultsStage assessment={RESULTS_FIXTURE} expiresAt={null} files={[]} loadFile={async () => ""} onDownload={() => {}} onDelete={() => {}} contactUrl="https://hybridcloudworks.com/contact" contactPath="/contact" />)` contains "Talk to Hybrid Cloud Works")
+- `ResultsStage with cta={false} renders no enterprise CTA` (same render with `cta={false}` contains neither "Talk to Hybrid Cloud Works" nor "Need an assessment you can act on?"); `RESULTS_FIXTURE` is a minimal `Assessment` (the type the explorer already holds in state, from `@amo/domain`) built in the test file from the existing `AssessmentSummary` and `ResourceDecisionRecord` fixtures
 - `EnterpriseCta renders a button and no href when a host handles navigation`
 - `EnterpriseCta renders an in-frame link when no host handles navigation`
 
-**Acceptance criteria.** `renderToStaticMarkup(<MigrationExplorer />)` contains `href="/api/sample.csv"` and "Powered by"; with `partners={false}` it contains none of `PARTNERS[*].name`; the existing first test (line 7-13) still passes with its explicit `apiBaseUrl`; `tsc -b` passes for `apps/appliance-web`.
+**Acceptance criteria.** `renderToStaticMarkup(<MigrationExplorer />)` contains `href="/api/sample.csv"` and "Powered by"; with `partners={false}` it contains none of `PARTNERS[*].name`; `ResultsStage` with `cta={false}` renders no CTA markup and with the default renders it (the explorer passes its `cta` prop straight through, so the two tests cover the gate at the only stage where it is visible); the AddOn's e2e additionally asserts the CTA is present on the results stage of the real journey; the existing first test (line 7-13) still passes with its explicit `apiBaseUrl`; `tsc -b` passes for `apps/appliance-web`.
 
 **Priority.** P1. **Dependencies.** None inbound; `packages/ui/src/index.ts` exports (below). **Rollback.** Revert the file; every prop is optional, so no caller breaks in either direction.
 
@@ -613,6 +638,16 @@ The website's status proxy answers `{ configured, reachable, version, edition, c
 | `version`, `edition`, `capabilities`, `asOf` | Copied from the health body (`version` must match `^\d+\.\d+\.\d+`; strings capped at 40 characters, at most 20 capabilities) |
 | anything else | Never forwarded: not `siteOrigins`, not `turnstile`, not the extras, not the URL |
 
+The response is a discriminated contract with three complete shapes, so a consumer never meets an undocumented missing field:
+
+| Branch | Exact body |
+|---|---|
+| Not configured | `{ "configured": false }` (no other key; the consumer stops at `configured`) |
+| Configured, unreachable | `{ "configured": true, "reachable": false, "version": null, "edition": null, "capabilities": [], "asOf": null }` |
+| Configured, reachable | `{ "configured": true, "reachable": true, "version": "0.3.0", "edition": "demo", "capabilities": [...], "asOf": "<ISO timestamp from health>" }` |
+
+The website's `fetchAddonStatus` and the pane page read `configured` first, then `reachable`, and treat any other shape as unreachable.
+
 The appliance's own `/api/health` (`apps/appliance-api/src/index.ts:71`, `edition: "enterprise"`) is unchanged and is never framed.
 
 ## 9. Required data contract changes
@@ -686,6 +721,7 @@ None required. The appliance Terraform, `Dockerfile.appliance`, `publish-npm.yml
 
 - Code: the props are optional and additive; reverting the `packages/ui` and `packages/contracts` commits breaks no caller in this repository. The downstream pane app would fall back to its interim CSS hide of the partner panel and its own stage handling.
 - Release: do not delete the `v0.3.0` tag. Cut `v0.3.1` with the revert, or leave `v0.3.0` and have the downstream keep `APP_REF` at `v0.2.1` (its `core-update` PR is simply not merged). Image and CLI artifacts already published for `v0.3.0` stay immutable.
+- After downstream adoption (section 21), the rollback is coordinated, because the pane app then passes `partners`, `cta`, `onStageChange`, `onNavigate` and `contactPath`, which a reverted core rejects at `tsc`. Order: (1) the AddOn stays pinned at `v0.3.0`, which keeps compiling and running; (2) the AddOn reverts its prop wiring in one PR (restoring the interim CSS hide and its own stage handling, the state it shipped in `_Addon` 0.3.0 before adoption) and merges it; (3) only then does its `APP_REF` move to the revert release (`v0.3.1`). The AddOn's `core-update` workflow enforces the order mechanically: its test run against the candidate tag fails at `tsc` while the prop wiring is present, so the bump PR cannot merge first.
 - Docs: ADR-0030 is marked Superseded, never deleted; WORKING-PLAN Phase 3 is reverted by hunk.
 - Optional Docker Hub move: revert the workflow; GHCR images remain pullable.
 
@@ -735,8 +771,10 @@ set -euo pipefail && npm ci && npm test && npm run rules:validate && npm run pac
 Release, after the PR is merged and `main` is checked out (both shells):
 
 ```powershell
-git checkout main; git pull; npm version 0.3.0 --no-git-tag-version; git commit -am "release: v0.3.0 (ADR-0030, pane-ready explorer and AddOn health contract)"; git push origin main; git tag v0.3.0; git push origin v0.3.0
+git checkout main; if ($LASTEXITCODE) { throw "checkout failed" }; git pull; if ($LASTEXITCODE) { throw "pull failed" }; npm version 0.3.0 --no-git-tag-version; if ($LASTEXITCODE) { throw "npm version failed" }; git commit -am "release: v0.3.0 (ADR-0030, pane-ready explorer and AddOn health contract)"; if ($LASTEXITCODE) { throw "commit failed" }; git push origin main; if ($LASTEXITCODE) { throw "push failed" }; git tag v0.3.0; if ($LASTEXITCODE) { throw "tag failed" }; git push origin v0.3.0; if ($LASTEXITCODE) { throw "tag push failed" }
 ```
+
+Each step stops the line on a non-zero exit code, so a failed checkout or pull never commits, tags or pushes from a stale branch, and a failed push leaves no tag behind (the tag is created only after `main` is pushed). Successful output ends with `* [new tag] v0.3.0 -> v0.3.0`.
 
 ```bash
 git checkout main && git pull && npm version 0.3.0 --no-git-tag-version && git commit -am "release: v0.3.0 (ADR-0030, pane-ready explorer and AddOn health contract)" && git push origin main && git tag v0.3.0 && git push origin v0.3.0
