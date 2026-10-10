@@ -643,7 +643,7 @@ The response is a discriminated contract with three complete shapes, so a consum
 | Branch | Exact body |
 |---|---|
 | Not configured | `{ "configured": false }` (no other key; the consumer stops at `configured`) |
-| Configured, unreachable | `{ "configured": true, "reachable": false, "version": null, "edition": null, "capabilities": [], "asOf": null }` |
+| Configured, unreachable | `{ "configured": true, "reachable": false, "version": null, "edition": null, "capabilities": [], "asOf": "<ISO timestamp of the failed read>" }` |
 | Configured, reachable | `{ "configured": true, "reachable": true, "version": "0.3.0", "edition": "demo", "capabilities": [...], "asOf": "<ISO timestamp from health>" }` |
 
 The website's `fetchAddonStatus` and the pane page read `configured` first, then `reachable`, and treat any other shape as unreachable.
