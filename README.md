@@ -6,10 +6,17 @@
 [![security](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/actions/workflows/security.yml/badge.svg)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/actions/workflows/security.yml)
 [![release](https://img.shields.io/github/v/release/saulpatinojr/HCW-AzMigrateOrchestrator_App?label=release)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/releases)
 [![node](https://img.shields.io/badge/node-%3E%3D26-339933?logo=node.js&logoColor=white)](docs/adr/ADR-0029-node-26-runtime-floor.md)
-[![npm](https://img.shields.io/badge/npm-%40hybridcloudworks%2Fmigration--core%20%C2%B7%20migration--ui-pending%20bootstrap-lightgrey?logo=npm)](docs/release/npm-publishing.md)
+[![packages](https://img.shields.io/badge/packages-migration--core%20%C2%B7%20migration--ui%20as%20release%20assets-6f42c1?logo=github)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/releases/latest)
+[![live](https://img.shields.io/website?url=https%3A%2F%2Fmigration.lab.hybridcloudworks.com%2Fapi%2Fhealth&label=try%20it%20at%20%2Ftools%2Fmigration&up_message=live&down_message=down)](https://hybridcloudworks.com/tools/migration)
 [![docker hub](https://img.shields.io/badge/docker.io-hybridcloudworks%2Fhcw--app--migration--appliance-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/hybridcloudworks/hcw-app-migration-appliance)
 [![license](https://img.shields.io/github/license/saulpatinojr/HCW-AzMigrateOrchestrator_App)](LICENSE)
 [![downstream](https://img.shields.io/badge/downstream-HCW--AzMigrateOrchestrator__Addon-6f42c1?logo=github)](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon)
+
+**New here?** Give it an inventory of an Azure environment and it tells you, resource by resource, how each one can be
+moved and what to watch out for, with the evidence behind every answer. You can try that today without installing
+anything: [hybridcloudworks.com/tools/migration](https://hybridcloudworks.com/tools/migration) takes the CSV the Azure
+portal exports and shows the plan. This repository is the full product behind it, for teams that want the same
+answers from a live, signed-in view of their own estate.
 
 For every Azure resource in an estate, the engine answers *how it moves*: ARM move, Resource Mover, Azure Migrate or another
 service, ASR (DR only), a database or data mechanism, recreate the infrastructure, migrate the data separately, rebuild
@@ -57,8 +64,8 @@ flowchart LR
 | **`HCW-AzMigrateOrchestrator_App`** (this one) | Upstream: engine, rules, CLI, UI components, appliance. Freestanding. | `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui`, CLI binaries, appliance image |
 | [`HCW-AzMigrateOrchestrator_Addon`](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon) | Downstream: the slim web-front edition — CSV lab API and the pane framed at hybridcloudworks.com/tools/migration. Freestanding in deployment; depends on the two package tarballs attached to this repository's GitHub Release of each `v*` tag, pinned by URL and integrity hash and adopted through its `core-update` workflow. | Lab image |
 
-**Updates flow downstream.** Every release here is picked up by the addon's `core-update` workflow, which builds the
-release, installs it, runs the addon's unit tests and browser e2e, and opens a pull request bumping the pin labelled
+**Updates flow downstream.** Every release here is picked up by the addon's `core-update` workflow, which installs the
+release's package tarballs, runs the addon's unit tests and browser e2e, and opens a pull request bumping the pin labelled
 `compatible` or `needs-adaptation`. Nothing is ever consumed from `main`. The Azure clients never leave this repository,
 so the addon is technically unable to reach Azure. Decision records: [ADR-0028](docs/adr/ADR-0028-appliance-upstream-web-front-downstream.md),
 [ADR-0008](docs/adr/ADR-0008-hard-edition-boundary-the-demo-cannot-construct-an-azure-provider.md).
@@ -104,7 +111,7 @@ A `v*` tag publishes, only after the checks pass:
 |---|---|---|
 | Appliance image | `docker.io/hybridcloudworks/hcw-app-migration-appliance` | Built locally, scanned (Trivy, HIGH/CRITICAL fixed), then pushed through the Docker OIDC connection with provenance and SBOM (`docs/release/docker-hub.md`). Deploy by digest, never by tag |
 | CLI binaries | GitHub Releases, three platforms, with `SHA256SUMS-*.txt` and provenance | Each binary smoke-tested (`rules validate` + a sample `assess`) |
-| `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui` | npm, trusted publishing with provenance, no stored token | Clean-consumer gate; **pending the one-time owner bootstrap** in [`docs/release/npm-publishing.md`](docs/release/npm-publishing.md) |
+| `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui` | GitHub Release assets (`hybridcloudworks-migration-{core,ui}-<version>.tgz`) with provenance; the downstream edition pins them by URL and hash. npm publishing is optional ([`docs/release/npm-publishing.md`](docs/release/npm-publishing.md)) | Clean-consumer gate (`npm run packages:verify`) against the packed tarballs |
 
 Actions are pinned to commit SHAs; Dependabot keeps them current.
 
