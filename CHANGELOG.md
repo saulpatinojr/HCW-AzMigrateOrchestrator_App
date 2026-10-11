@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `rules-refresh.yml`: the checkout no longer persists its credentials. `create-pull-request` sets its own Authorization header for the push, and with the checkout's header beside it git sent two and GitHub answered `400` on `git remote prune origin` (the weekly run on 2026-10-05 and a manual re-run on 2026-10-11 both failed there).
+
 ### 0.3.1: the questionnaire keeps focus, offers real values, and portal exports keep their resource ids
 
 Reported by the owner on 2026-10-11 from the first live run of the migration pane with a portal "All resources" export.
