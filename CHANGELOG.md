@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 0.3.1: the questionnaire keeps focus, offers real values, and portal exports keep their resource ids
+
+Reported by the owner on 2026-10-11 from the first live run of the migration pane with a portal "All resources" export.
+
+- `packages/ui` `QuestionnaireForm`: the field components were defined inside the form, so every keystroke handed React a new component type, remounted the input and dropped focus after one character. They are module-level now. **Destination region** is a select over the Azure public regions (`AZURE_REGIONS`, ARM location names as values, the export's own regions marked "current", an "Other" choice that reveals a free-text field); the form shows which regions the export is in (`sourceLocations`, fed by `MigrationExplorer` from the LOCATION column); every other select carries labelled values (Production, Minutes, Online, Deny, …) against the same engine ids; RTO/RPO are non-negative numbers. **Public surface change:** `QuestionnaireFormProps`, `OTHER_REGION`, `AZURE_REGIONS`, `AzureRegion`, `regionId`, `csvColumnValues` and `splitCsvLine` are exported from `@hybridcloudworks/migration-ui`; the packed-consumer gate uses them. The region list is data (retrieved 2026-10-11, `[VERIFY]`), never a gate: an unlisted region is typed in.
+- `packages/csv-ingestion`: the portal export has no RESOURCE ID column but links every row (`RESOURCE LINK`, `https://portal.azure.com#resource/subscriptions/…` or `/#@tenant/resource/…`). `resourceIdFromPortalLink` recovers the id (percent-decoded); `ingestResourcesCsv` uses it when no Resource ID column exists, with provenance `derived-from-resource-link`, so parent/child discovery, canonical types and subscription/resource-group derivation work on the default export. The "cannot be discovered" warning now appears only when neither column exists; a derivable `subscriptionId`/`resourceGroup` column is reported as derived (every row, or n of m) instead of "labelled missing". `resourceLink` is a header alias that is never reported missing.
+- `packages/ui` `previewCsv`: cells are split with quote handling (an embedded comma no longer shifts the preview columns), and the RESOURCE ID warning says ids will be derived when a RESOURCE LINK column is present.
+
 ### 0.3.0 (unreleased): the web-front edition runs as a site pane (ADR-0030)
 
 - `release-cli.yml` (now `release`): a `packages` job packs `dist-packages/migration-core` and `migration-ui` on every `v*` tag, verifies the tag matches the package version, runs the clean-consumer gate, attests provenance and attaches both tarballs to the GitHub Release. The downstream edition pins them by URL and integrity hash and adopts releases through `core-update`; the sibling-checkout interim contract is retired on its side and npm publishing becomes optional (ADR-0030 amended). The same release-asset method now serves all three App/AddOn pairs.

@@ -7,6 +7,8 @@ export const HEADER_ALIASES: Record<string, string[]> = {
   subscriptionName: ["subscription", "subscription name", "subscriptionname"],
   subscriptionId: ["subscription id", "subscriptionid", "subscription_id"],
   resourceId: ["resource id", "resourceid", "resource_id", "id"],
+  /** The portal export's link column; a resource id is derived from it when no Resource ID column exists. */
+  resourceLink: ["resource link", "resourcelink", "resource_link", "portal link", "link"],
   tags: ["tags", "tag"],
   kind: ["kind"],
   sku: ["sku", "sku name", "sku_name", "tier", "pricing tier"],
@@ -14,7 +16,8 @@ export const HEADER_ALIASES: Record<string, string[]> = {
 };
 
 export const REQUIRED_COLUMNS = ["name", "type"] as const;
-export const EXPECTED_COLUMNS = Object.keys(HEADER_ALIASES);
+/** Columns whose absence is reported; `resourceLink` is a fallback source, never expected. */
+export const EXPECTED_COLUMNS = Object.keys(HEADER_ALIASES).filter((c) => c !== "resourceLink");
 
 export function normalizeHeader(h: string): string {
   return h.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
@@ -22,7 +25,7 @@ export function normalizeHeader(h: string): string {
 
 export function mapHeaders(headers: string[]): { map: Record<string, string | null>; extra: string[]; missing: string[] } {
   const map: Record<string, string | null> = {};
-  for (const k of EXPECTED_COLUMNS) map[k] = null;
+  for (const k of Object.keys(HEADER_ALIASES)) map[k] = null;
   const extra: string[] = [];
   for (const h of headers) {
     const n = normalizeHeader(h);

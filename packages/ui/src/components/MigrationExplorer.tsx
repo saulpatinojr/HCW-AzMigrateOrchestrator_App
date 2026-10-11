@@ -10,6 +10,7 @@ import { DecisionDetail } from "./DecisionDetail.js";
 import { WavePlanView } from "./WavePlanView.js";
 import { GeneratedFiles } from "./GeneratedFiles.js";
 import { PoweredBy } from "./PoweredBy.js";
+import { csvColumnValues } from "../preview.js";
 
 export type Stage = "upload" | "questions" | "running" | "results";
 
@@ -70,6 +71,7 @@ export function MigrationExplorer({ apiBaseUrl = "", turnstile, getTurnstileToke
   };
 
   const onFile = useCallback((text: string, name: string) => { setCsv({ text, name }); setStage("questions"); }, []);
+  const sourceLocations = useMemo(() => (csv ? csvColumnValues(csv.text, ["location", "region", "azure region"]) : []), [csv]);
 
   const run = async (intent: Partial<MigrationIntent>) => {
     if (!csv) return;
@@ -115,7 +117,7 @@ export function MigrationExplorer({ apiBaseUrl = "", turnstile, getTurnstileToke
         <strong>What this lab is — and is not.</strong> It analyses an exported inventory only. It never connects to an Azure tenant, never asks for credentials, and cannot execute migration actions. Results are rule-based illustrations labelled with their evidence state and confidence; they are not an authoritative Azure assessment. Uploads are processed in memory and expire automatically.
       </div>
       <UploadStep sampleUrl={`${apiBaseUrl}/api/sample.csv`} onFile={onFile} turnstile={turnstile} />
-      {stage !== "upload" && <QuestionnaireForm onSubmit={run} busy={stage === "running"} />}
+      {stage !== "upload" && <QuestionnaireForm onSubmit={run} busy={stage === "running"} sourceLocations={sourceLocations} />}
       {error && <p role="alert" className="rounded-lg border border-red-700 p-3 text-sm text-red-700">Assessment failed: {error}</p>}
       {(stage === "running" || stage === "results") && <ProgressList events={events} pending={stage === "running"} />}
       {stage === "results" && assessment && <ResultsStage assessment={assessment} expiresAt={expiresAt} files={files} loadFile={(p) => client.file(p)} onDownload={download} onDelete={remove} onOpenWorkspace={workspaceAvailable ? openWorkspace : undefined} workspaceBusy={workspaceBusy} cta={cta} contactUrl={contactUrl} contactPath={contactPath} onNavigate={onNavigate} />}

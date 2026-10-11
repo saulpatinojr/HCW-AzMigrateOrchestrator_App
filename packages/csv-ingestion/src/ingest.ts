@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FieldProvenance, IngestionResult, NormalizedResource } from "@amo/domain";
 import { looksLikeFormula, parseCsv } from "./parse-csv.js";
-import { parseResourceId } from "./resource-id.js";
+import { parseResourceId, resourceIdFromPortalLink } from "./resource-id.js";
 import { canonicalType, mapHeaders, parseTags, REQUIRED_COLUMNS } from "./normalize.js";
 
 export interface IngestOptions {
@@ -29,8 +29,8 @@ export function ingestResourcesCsv(text: string, opts: IngestOptions = {}): Inge
   const { map, extra, missing } = mapHeaders(parsed.headers);
   const hardMissing = REQUIRED_COLUMNS.filter((c) => map[c] === null);
   if (hardMissing.length) return emptyResult(inputHash, [`required columns missing: ${hardMissing.join(", ")}`], warnings, map, missing, extra);
-  if (!map.resourceId) warnings.push("no Resource ID column: subscription/resource-group context derived only from other columns; parent/child relationships cannot be discovered");
-  for (const m of missing) if (m !== "resourceId") warnings.push(`column '${m}' not present in export; related conclusions will be labelled missing`);
+  if (!map.resourceId && map.resourceLink) warnings.push(`no Resource ID column: resource ids derived from the '${map.resourceLink}' column of the portal export`);
+  else if (!map.resourceId) warnings.push("no Resource ID column: subscription/resource-group context derived only from other columns; parent/child relationships cannot be discovered");
 
   const colIdx = (canon: string): number => (map[canon] ? parsed.headers.indexOf(map[canon] as string) : -1);
   const idx = Object.fromEntries(Object.keys(map).map((k) => [k, colIdx(k)])) as Record<string, number>;
@@ -56,7 +56,15 @@ export function ingestResourcesCsv(text: string, opts: IngestOptions = {}): Inge
     };
     const name = field("name", (v) => v, "trim") ?? `row-${rowNo}`;
     const rawType = field("type", (v) => v, "trim");
-    const resourceId = field("resourceId", (v) => v, "trim");
+    let resourceId = field("resourceId", (v) => v, "trim");
+    if (resourceId === null && idx.resourceLink >= 0) {
+      const link = get("resourceLink") ?? "";
+      const derived = resourceIdFromPortalLink(link);
+      if (derived) {
+        resourceId = derived;
+        prov.push({ originalHeader: map.resourceLink ?? undefined, normalizedHeader: "resourceId", originalValue: link, normalizedValue: derived, transformation: "derived-from-resource-link", evidence: "derived-from-resource-id" });
+      } else if (link.trim()) rowWarnings.push("resource link is not a portal resource link; no resource id derived");
+    }
     const parsedId = parseResourceId(resourceId);
     if (resourceId && !parsedId.valid) rowWarnings.push(`invalid resource id: ${parsedId.issues.join("; ")}`);
     const type = canonicalType(rawType ?? parsedId.fullType ?? "unknown/unknown");
@@ -104,6 +112,13 @@ export function ingestResourcesCsv(text: string, opts: IngestOptions = {}): Inge
       sourceRow: rowNo,
     });
   });
+  for (const m of missing) {
+    if (m === "resourceId") continue;
+    const derived = m === "subscriptionId" || m === "resourceGroup" ? resources.filter((r) => r[m] !== null).length : 0;
+    if (derived === 0) warnings.push(`column '${m}' not present in export; related conclusions will be labelled missing`);
+    else if (derived === resources.length) warnings.push(`column '${m}' not present in export; derived from the resource id of every row`);
+    else warnings.push(`column '${m}' not present in export; derived from the resource id of ${derived} of ${resources.length} rows, the rest labelled missing`);
+  }
   return { resources, warnings, errors, inputHash, rowCount: parsed.rows.length, duplicateCount, headerMap: map, missingColumns: missing, extraColumns: extra };
 }
 
