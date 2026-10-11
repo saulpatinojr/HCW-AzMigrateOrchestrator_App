@@ -1,6 +1,6 @@
 export { MigrationExplorer, ResultsStage, EnterpriseCta, type MigrationExplorerProps, type ResultsStageProps, type EnterpriseCtaProps, type Stage } from "./components/MigrationExplorer.js";
 export { UploadStep } from "./components/UploadStep.js";
-export { QuestionnaireForm } from "./components/QuestionnaireForm.js";
+export { QuestionnaireForm, OTHER_REGION, type QuestionnaireFormProps } from "./components/QuestionnaireForm.js";
 export { ProgressList } from "./components/ProgressList.js";
 export { SummaryPanel } from "./components/SummaryPanel.js";
 export { DecisionTable } from "./components/DecisionTable.js";
@@ -9,4 +9,5 @@ export { WavePlanView } from "./components/WavePlanView.js";
 export { GeneratedFiles } from "./components/GeneratedFiles.js";
 export { PoweredBy, PARTNERS } from "./components/PoweredBy.js";
 export { LabApiClient, type LabApiClientOptions, type MigrationAddOnHealth } from "./client.js";
-export { previewCsv, type CsvPreview } from "./preview.js";
+export { previewCsv, csvColumnValues, splitCsvLine, type CsvPreview } from "./preview.js";
+export { AZURE_REGIONS, regionId, type AzureRegion } from "./regions.js";

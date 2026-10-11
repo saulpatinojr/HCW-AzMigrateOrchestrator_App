@@ -46,3 +46,20 @@ export function parseResourceId(id: string | null | undefined): ParsedResourceId
   out.valid = issues.length === 0 && !!out.fullType;
   return out;
 }
+
+/**
+ * Recover an Azure resource ID from a portal "Resource link" cell. The portal's "All resources" export carries no Resource ID
+ * column by default but every row links to the resource as `https://portal.azure.com#resource/subscriptions/...` or
+ * `https://portal.azure.com/#@{tenant}/resource/subscriptions/...`. Returns the `/subscriptions/...` path, or null when the
+ * cell is not such a link. Percent-encoding is decoded; a cell that is already a bare resource ID is returned as is.
+ */
+export function resourceIdFromPortalLink(link: string | null | undefined): string | null {
+  if (!link || typeof link !== "string") return null;
+  const s = link.trim();
+  if (s.startsWith("/subscriptions/")) return s;
+  const m = /(?:#|\/)(?:@[^/]+\/)?resource(\/subscriptions\/.+)$/i.exec(s);
+  if (!m) return null;
+  let path = m[1];
+  try { path = decodeURIComponent(path); } catch { /* keep the raw path; parseResourceId reports what it cannot read */ }
+  return path.replace(/[?#].*$/, "").replace(/\/+$/, "");
+}

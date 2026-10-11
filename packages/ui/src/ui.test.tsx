@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MigrationExplorer, ResultsStage, EnterpriseCta, PoweredBy, PARTNERS, previewCsv, LabApiClient, SummaryPanel, DecisionTable, type Stage, type MigrationAddOnHealth } from "./index.js";
+import { MigrationExplorer, ResultsStage, EnterpriseCta, PoweredBy, PARTNERS, previewCsv, csvColumnValues, splitCsvLine, QuestionnaireForm, AZURE_REGIONS, regionId, OTHER_REGION, LabApiClient, SummaryPanel, DecisionTable, type Stage, type MigrationAddOnHealth } from "./index.js";
 import type { Assessment, AssessmentSummary, ResourceDecisionRecord } from "@amo/domain";
 
 test("MigrationExplorer renders the disclaimer and upload step without touching window at module load", () => {
@@ -23,6 +23,46 @@ test("previewCsv warns on missing columns and sniffs delimiter", () => {
   assert.equal(p.headers.length, 2);
   assert.ok(p.warnings.some((w) => w.includes("TYPE")));
   assert.equal(previewCsv("NAME,TYPE,RESOURCE ID\na,b,c").warnings.length, 0);
+});
+
+test("previewCsv keeps a quoted cell with an embedded comma in one column and treats RESOURCE LINK as an id source", () => {
+  const p = previewCsv('NAME,TYPE,RESOURCE GROUP,LOCATION,SUBSCRIPTION,RESOURCE LINK\n"hcw-sample, with comma","Action group","rg-hcw-sample","Global","sub-hcw-sample","https://portal.azure.com#resource/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-hcw-sample/providers/Microsoft.Insights/actiongroups/hcw-sample"\n');
+  assert.equal(p.rows[0][0], "hcw-sample, with comma");
+  assert.equal(p.rows[0][3], "Global");
+  assert.equal(p.warnings.length, 1);
+  assert.ok(p.warnings[0].includes("derived from the RESOURCE LINK column"));
+  assert.ok(!p.warnings[0].includes("Re-export"));
+  assert.deepEqual(splitCsvLine('a,"b ""q"" c",,d', ","), ["a", 'b "q" c', "", "d"]);
+});
+
+test("csvColumnValues lists distinct LOCATION values in first-seen order and tolerates a missing column", () => {
+  const csv = 'NAME,TYPE,LOCATION\n"a, b",t,"Central US"\nc,t,Global\nd,t,"Central US"\ne,t,\n';
+  assert.deepEqual(csvColumnValues(csv, ["location", "region"]), ["Central US", "Global"]);
+  assert.deepEqual(csvColumnValues("NAME,TYPE\na,b\n", ["location"]), []);
+  assert.deepEqual(csvColumnValues("", ["location"]), []);
+});
+
+test("regionId maps display and ARM names to the ARM location name", () => {
+  assert.equal(regionId("Central US"), "centralus");
+  assert.equal(regionId("westus3"), "westus3");
+  assert.equal(regionId("Global"), null);
+  assert.equal(regionId(null), null);
+  assert.ok(AZURE_REGIONS.length > 40);
+  assert.equal(new Set(AZURE_REGIONS.map((r) => r.id)).size, AZURE_REGIONS.length, "region ids are unique");
+  assert.ok(AZURE_REGIONS.every((r) => /^[a-z0-9]+$/.test(r.id)), "ids are ARM location names");
+  assert.ok(!AZURE_REGIONS.some((r) => r.id === OTHER_REGION));
+});
+
+test("QuestionnaireForm offers real values in every select and marks the export's current region", () => {
+  const html = renderToStaticMarkup(<QuestionnaireForm onSubmit={() => {}} sourceLocations={["Central US", "Global"]} />);
+  assert.ok(html.includes('<option value="westus3">West US 3 (westus3)</option>'));
+  assert.ok(html.includes('<option value="centralus">Central US (centralus) — current</option>'));
+  assert.ok(html.includes(`<option value="${OTHER_REGION}">Other (type it)</option>`));
+  assert.ok(html.includes("This export is in: Central US, Global."));
+  for (const v of ["region-relocation", "resource-group-move", "subscription-move", "cross-tenant-migration", "production", "non-production", "mixed", "none", "minutes", "hours", "days", "online", "offline", "allow", "deny"]) assert.ok(new RegExp(`<option value="${v}"[^>]*>`).test(html), `option ${v}`);
+  assert.equal((html.match(/<option value="true">Yes<\/option>/g) ?? []).length, 4, "four yes/no questions");
+  assert.ok(html.includes('type="number"'));
+  assert.ok(!html.includes("Region name as Azure spells it"), "the free-text region field is hidden until Other is chosen");
 });
 
 test("LabApiClient keeps the owner token in memory and sends it on later calls", async () => {

@@ -45,6 +45,8 @@ const { assessment, bundle } = await o.assessCsv(readFileSync("sample.csv", "utf
 if (!assessment || Object.keys(bundle.files).length < 10) throw new Error("assessment produced no bundle");
 if (typeof ui.MigrationExplorer !== "function") throw new Error("MigrationExplorer missing from the UI package");
 if (typeof ui.EnterpriseCta !== "function") throw new Error("EnterpriseCta missing from the UI package");
+if (!Array.isArray(ui.AZURE_REGIONS) || ui.regionId("Central US") !== "centralus") throw new Error("region list missing from the UI package");
+if (ui.csvColumnValues('NAME,LOCATION\\n"a, b","East US"\\n', ["location"])[0] !== "East US") throw new Error("csvColumnValues broken");
 if (isAddOnHealth({}) !== false) throw new Error("isAddOnHealth broken");
 if (!API_LIMITS.maxUploadBytes) throw new Error("contracts subpath broken");
 console.log("consumer ok:", assessment.decisions?.length ?? Object.keys(bundle.files).length, "decisions/files; rules from", rulesDir);
@@ -57,7 +59,7 @@ import type { ResourceDecisionRecord, MigrationIntent } from "@hybridcloudworks/
 import type { CreateAssessmentRequest, AddOnHealth, AddOnPaneMessage, AddOnPaneState } from "@hybridcloudworks/migration-core/contracts";
 import { ADDON_HEALTH_FIELDS, ADDON_PANE_STATES, isAddOnHealth } from "@hybridcloudworks/migration-core/contracts";
 import { Orchestrator } from "@hybridcloudworks/migration-core/agents";
-import { MigrationExplorer, EnterpriseCta, LabApiClient, type MigrationExplorerProps, type EnterpriseCtaProps, type Stage, type MigrationAddOnHealth } from "@hybridcloudworks/migration-ui";
+import { MigrationExplorer, EnterpriseCta, LabApiClient, QuestionnaireForm, AZURE_REGIONS, regionId, csvColumnValues, OTHER_REGION, type MigrationExplorerProps, type EnterpriseCtaProps, type QuestionnaireFormProps, type AzureRegion, type Stage, type MigrationAddOnHealth } from "@hybridcloudworks/migration-ui";
 const intent: Partial<MigrationIntent> = { destinationRegion: "westus3" };
 const req: CreateAssessmentRequest = { csv: "a,b", intent };
 const o: Orchestrator = new Orchestrator({ edition: "demo" });
@@ -70,7 +72,11 @@ const ctaProps: EnterpriseCtaProps = { contactUrl: "https://hybridcloudworks.com
 const fields: readonly string[] = ADDON_HEALTH_FIELDS;
 const check = (x: unknown): x is AddOnHealth => isAddOnHealth(x);
 const health = (): Promise<MigrationAddOnHealth> => new LabApiClient({ baseUrl: "" }).health();
-export { req, o, pick, stage, message, props, ctaProps, fields, check, health, MigrationExplorer, EnterpriseCta };
+const qProps: QuestionnaireFormProps = { onSubmit: (i: Partial<MigrationIntent>) => void i, sourceLocations: csvColumnValues("NAME,LOCATION\\n", ["location"]) };
+const first: AzureRegion | undefined = AZURE_REGIONS[0];
+const rid: string | null = regionId(first?.name);
+const other: string = OTHER_REGION;
+export { qProps, rid, other, QuestionnaireForm, req, o, pick, stage, message, props, ctaProps, fields, check, health, MigrationExplorer, EnterpriseCta };
 `);
   writeFileSync(join(proj, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "Node16", moduleResolution: "Node16", strict: true, jsx: "react-jsx", noEmit: true, skipLibCheck: true, types: [] }, files: ["consumer.ts"] }));
   run("node", [join(ROOT, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"], proj);
