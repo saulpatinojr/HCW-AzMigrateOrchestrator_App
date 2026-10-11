@@ -55,7 +55,7 @@ flowchart LR
 | Repository | Role | Publishes |
 |---|---|---|
 | **`HCW-AzMigrateOrchestrator_App`** (this one) | Upstream: engine, rules, CLI, UI components, appliance. Freestanding. | `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui`, CLI binaries, appliance image |
-| [`HCW-AzMigrateOrchestrator_Addon`](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon) | Downstream: the slim web-front edition — CSV lab API and the pane framed at hybridcloudworks.com/tools/migration. Freestanding in deployment; depends on exact versions of the two packages. | Lab image |
+| [`HCW-AzMigrateOrchestrator_Addon`](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_Addon) | Downstream: the slim web-front edition — CSV lab API and the pane framed at hybridcloudworks.com/tools/migration. Freestanding in deployment; depends on the two package tarballs attached to this repository's GitHub Release of each `v*` tag, pinned by URL and integrity hash and adopted through its `core-update` workflow. | Lab image |
 
 **Updates flow downstream.** Every release here is picked up by the addon's `core-update` workflow, which builds the
 release, installs it, runs the addon's unit tests and browser e2e, and opens a pull request bumping the pin labelled

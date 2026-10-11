@@ -1,5 +1,10 @@
 # Publishing the npm packages (owner runbook)
 
+> **Optional since 2026-10-11.** Every `v*` tag's GitHub Release carries the two package tarballs
+> (`release-cli.yml`, job `packages`), and the downstream edition `HCW-AzMigrateOrchestrator_Addon` pins them by URL with
+> an integrity hash and adopts new releases through its `core-update` workflow. Publishing to npm makes the packages
+> available to third parties; it is not on the path between a release and the website.
+
 `publish-npm.yml` publishes `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui` on every `v*` tag using
 **npm trusted publishing** (OIDC from GitHub Actions, provenance attached, no token stored anywhere). The registry needs a
 one-time bootstrap that only the package owner can do. Until it is done the workflow is skipped (not failed) because it is
