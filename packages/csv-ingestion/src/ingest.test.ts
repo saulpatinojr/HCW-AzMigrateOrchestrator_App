@@ -90,6 +90,10 @@ test("resourceIdFromPortalLink reads both portal link shapes and rejects anythin
   assert.equal(resourceIdFromPortalLink(`https://portal.azure.com/#@contoso.example/resource${id}/`), id);
   assert.equal(resourceIdFromPortalLink(id), id);
   assert.equal(resourceIdFromPortalLink("https://portal.azure.com/#blade/HubsExtension/BrowseAll"), null);
+  assert.equal(resourceIdFromPortalLink(`https://portal.azure.com/#blade/x/subscriptions/${id.slice(15)}`), null, "only a portal resource link counts");
+  assert.equal(resourceIdFromPortalLink(`https://portal.azure.com#resource${id}?tab=overview`), id);
+  const t = Date.now(); resourceIdFromPortalLink("#".repeat(200000)); resourceIdFromPortalLink("/".repeat(200000)); resourceIdFromPortalLink("#resource/subscriptions/".repeat(10000));
+  assert.ok(Date.now() - t < 1000, "linear on hostile input");
   assert.equal(resourceIdFromPortalLink(""), null);
   assert.equal(resourceIdFromPortalLink(null), null);
 });
