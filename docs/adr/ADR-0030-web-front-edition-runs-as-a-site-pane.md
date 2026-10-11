@@ -51,4 +51,9 @@ in-frame links back to the site.
 - WORKING-PLAN Phase 3 is rewritten: route `/tools/migration`, hostname `migration.lab.hybridcloudworks.com`, hosting
   by the website's `addons` role, rate limiting and concurrency delivered downstream, npm publication optional.
 - `edition` stays `demo` in the lab API's health; the site's proxy treats the string as opaque.
+- Amended 2026-10-11: the artifact the downstream edition consumes is the pair of package tarballs attached to this
+  repository's GitHub Release of each `v*` tag (`release-cli.yml`, job `packages`), pinned there by URL and integrity
+  hash; the ADR-0028 interim contract (a sibling checkout built at `APP_REF`) is retired. This is the same method the
+  Cloud Assessor and NetworkEyes pairs use (a release wheel pinned by URL and sha256), so all three pairs adopt
+  releases the same way, with no registry on the path.
 - Next ADR number: 0031.

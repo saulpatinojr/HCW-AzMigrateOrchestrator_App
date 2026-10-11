@@ -3,7 +3,7 @@
 This is `saulpatinojr/HCW-AzMigrateOrchestrator_App`, the **upstream product** (ADR-0028): the migration intelligence core
 (`packages/*`), the rule corpus (`rules/`), the `amo` CLI, the explorer UI components and the Azure appliance. It publishes
 `@hybridcloudworks/migration-core` and `@hybridcloudworks/migration-ui` (assembled by `scripts/assemble-packages.mjs` into
-`dist-packages/`). The slim web-front edition `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` consumes those packages at exact
+`dist-packages/`). The slim web-front edition `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` consumes those packages as the tarballs attached to each `v*` GitHub Release (pinned by URL and integrity hash) at exact
 versions and must stay technically unable to reach Azure: `azure-auth`, `azure-arm` and `azure-execution` are never published
 (`tests/security/appliance-boundary.test.mjs`, `tests/packaging/`).
 
