@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `github/codeql-action` init and analyze to v4.38.3 together (Dependabot #32 bumped `init` alone and failed the CodeQL upload); `dependabot.yml` now groups every Actions pin into one `all-actions` pull request, as the downstream edition does. `@radix-ui/react-tabs` ^1.2.1 in `packages/ui` (Dependabot #30, re-locked after #29).
+
 - README: a "new here?" opener that says what the product does and where to try it, a packages badge pointing at the release assets (the npm badge said "pending bootstrap"), a live badge for the site pane, and the releases table and downstream paragraph describe the tarball method.
 
 - `rules-refresh.yml`: the checkout no longer persists its credentials. `create-pull-request` sets its own Authorization header for the push, and with the checkout's header beside it git sent two and GitHub answered `400` on `git remote prune origin` (the weekly run on 2026-10-05 and a manual re-run on 2026-10-11 both failed there).
