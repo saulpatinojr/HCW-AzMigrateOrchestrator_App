@@ -7,6 +7,11 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    # One pull request for every Actions pin: codeql-action init and analyze must move together (#32 bumped init
+    # alone and failed the CodeQL upload), as the downstream edition already does.
+    groups:
+      all-actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /infrastructure/docker
     schedule: { interval: weekly }
