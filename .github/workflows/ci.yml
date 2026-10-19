@@ -20,7 +20,7 @@ jobs:
         env: { VITE_ENTRA_TENANT_ID: ci, VITE_ENTRA_SPA_CLIENT_ID: ci, VITE_API_SCOPE: ci }
       - name: Package repository ZIP (artifact)
         run: bash scripts/package-repository.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: hcw-azmigrateorchestrator-app, path: hcw-azmigrateorchestrator-app.zip, retention-days: 7 }
 
   packed-consumer:
