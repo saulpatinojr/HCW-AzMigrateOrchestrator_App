@@ -47,6 +47,12 @@ jobs:
         if: always() && hashFiles('osv-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with: { sarif_file: osv-results.sarif, category: osv-scanner }
+      - name: Fail when the scanner produced no results at all
+        # Findings stay report-only, but a scanner that died before writing its file must not look like a clean run.
+        if: always() && steps.osv.outcome != 'success' && hashFiles('osv-results.sarif') == ''
+        run: |
+          echo "OSV-Scanner did not produce osv-results.sarif, so nothing was scanned." >&2
+          exit 1
 
   scorecard:
     if: github.event_name != 'pull_request'

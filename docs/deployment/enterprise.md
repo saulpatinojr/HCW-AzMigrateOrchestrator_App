@@ -50,7 +50,7 @@ identity federation in CI, Azure CLI for local development. `AMO_*SECRET` / `AZU
 ## 2b. Web UI
 
 `apps/appliance-web` (Vite + React + MSAL). Register a **second**, public-client SPA app registration with redirect URI
-set to the exact web address where you host the UI, ending in a slash (for example the address Static Web Apps shows once you create it), expose the API's `access_as_user` scope on the API registration, and pre-authorize the SPA. Build with
+set to the exact web address where you host the UI, with no slash at the end (the app sends `window.location.origin`, for example `https://` followed by the host name that Static Web Apps shows once you create it, and Microsoft Entra compares the address exactly), expose the API's `access_as_user` scope on the API registration, and pre-authorize the SPA. Build with
 `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_SPA_CLIENT_ID`, `VITE_API_SCOPE`, `VITE_API_BASE_URL` (all public values) and host the
 `dist/` on Static Web Apps or a second Container App. Add the web origin to the API's allowed origins when hosted separately.
 
