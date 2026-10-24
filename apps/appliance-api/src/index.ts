@@ -31,6 +31,20 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): EnterpriseC
   return { tenantId: env.AMO_ENTRA_TENANT_ID ?? null, clientId, audiences: [env.AMO_ENTRA_AUDIENCE, clientId, clientId ? `api://${clientId}` : null].filter((x): x is string => !!x), credentialKind: (env.AMO_CREDENTIAL_KIND as EnterpriseConfig["credentialKind"]) ?? "managed-identity", useFixture: env.AMO_DISCOVERY_FIXTURE === "1" };
 }
 
+/**
+ * Startup refusal for production (ticket #51). In production (NODE_ENV=production, which the appliance image sets) the API
+ * must not come up half configured: without a tenant and an app registration every route would answer 401 while
+ * /api/health looked fine. Empty values count as missing. Outside production the API still starts unconfigured, as the
+ * tests and local exploration rely on; the routes fail closed either way, and this check never relaxes that.
+ */
+export function assertProductionConfig(cfg: EnterpriseConfig, env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  const missing: string[] = [];
+  if (!cfg.tenantId) missing.push("AMO_ENTRA_TENANT_ID");
+  if (!cfg.clientId) missing.push("AMO_ENTRA_CLIENT_ID");
+  if (missing.length) throw new Error(`refusing to start in production: Entra ID sign-in is not configured (missing ${missing.join(" and ")}); set them as described in docs/deployment/enterprise.md`);
+}
+
 export function principalFromClaims(claims: { oid?: string; roles?: string[] } | null): Principal | null {
   if (!claims?.oid) return null;
   const level: AuthorizationLevel = claims.roles?.includes("Migration.Execute.Destructive") ? "destructive-execution" : claims.roles?.includes("Migration.Execute") ? "controlled-execution" : claims.roles?.includes("Migration.Plan") ? "planning" : "discovery";

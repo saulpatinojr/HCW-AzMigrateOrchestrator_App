@@ -5,7 +5,9 @@ import { noopLogger } from "@amo/observability";
 import { EntraTokenValidator, StaticTokenCredential } from "@amo/azure-auth";
 import { FixtureDiscoveryProvider } from "@amo/azure-discovery";
 import type { NormalizedResource } from "@amo/domain";
-import { configFromEnv, principalFromClaims, createEnterpriseApi, InMemoryRepository, PostgresRepository, SCHEMA_SQL } from "./index.js";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { assertProductionConfig, configFromEnv, principalFromClaims, createEnterpriseApi, InMemoryRepository, PostgresRepository, SCHEMA_SQL } from "./index.js";
 
 const TENANT = "11111111-2222-3333-4444-555555555555";
 const SUB = "00000000-0000-4000-8000-000000000001";
@@ -41,6 +43,25 @@ test("refuses a certificate path or a user name identity (ticket #50); existing 
   assert.throws(() => configFromEnv({ AZURE_USERNAME: "" }), /AZURE_USERNAME/, "presence alone is refused");
   for (const k of ["AZURE_CLIENT_SECRET", "AMO_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PASSWORD", "AZURE_PASSWORD"]) assert.throws(() => configFromEnv({ [k]: "x" }), /client secret/, k);
   assert.doesNotThrow(() => configFromEnv({ AMO_ENTRA_TENANT_ID: "t", AZURE_CLIENT_ID: "c" }));
+});
+
+test("production refuses to start without Entra configuration (ticket #51)", () => {
+  const prod = { NODE_ENV: "production" };
+  assert.throws(() => assertProductionConfig(configFromEnv({}), prod), /missing AMO_ENTRA_TENANT_ID and AMO_ENTRA_CLIENT_ID/);
+  assert.throws(() => assertProductionConfig(configFromEnv({ AMO_ENTRA_TENANT_ID: "t" }), prod), /missing AMO_ENTRA_CLIENT_ID/);
+  assert.throws(() => assertProductionConfig(configFromEnv({ AMO_ENTRA_CLIENT_ID: "c" }), prod), /missing AMO_ENTRA_TENANT_ID/);
+  assert.throws(() => assertProductionConfig(configFromEnv({ AMO_ENTRA_TENANT_ID: "", AMO_ENTRA_CLIENT_ID: "" }), prod), /missing/, "empty counts as missing");
+  assert.throws(() => assertProductionConfig(configFromEnv({ AMO_DISCOVERY_FIXTURE: "1" }), prod), /missing/, "fixture mode does not excuse missing sign-in");
+  const ok = { AMO_ENTRA_TENANT_ID: TENANT, AMO_ENTRA_CLIENT_ID: "amo" };
+  assert.doesNotThrow(() => assertProductionConfig(configFromEnv(ok), prod));
+  assert.doesNotThrow(() => assertProductionConfig(configFromEnv({}), {}), "outside production an unconfigured API still starts; routes stay 401");
+});
+
+test("the server process exits non-zero with a clear message in production without Entra configuration (ticket #51)", () => {
+  const server = fileURLToPath(new URL("./server.js", import.meta.url));
+  const r = spawnSync(process.execPath, [server], { env: { PATH: process.env.PATH ?? "", NODE_ENV: "production", PORT: "0" }, encoding: "utf8", timeout: 20000 });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /refusing to start in production.*AMO_ENTRA_TENANT_ID and AMO_ENTRA_CLIENT_ID/);
 });
 
 test("unauthenticated requests fail closed; health is public", async () => {

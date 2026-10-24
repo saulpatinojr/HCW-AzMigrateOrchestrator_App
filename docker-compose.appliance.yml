@@ -1,4 +1,4 @@
-# Appliance (enterprise) reference composition for local development. Sign-in requires AMO_ENTRA_TENANT_ID/CLIENT_ID;
+# Appliance (enterprise) reference composition for local development. Sign-in requires AMO_ENTRA_TENANT_ID/CLIENT_ID (the image runs in production mode and refuses to start without them);
 # discovery uses AMO_CREDENTIAL_KIND=azure-cli locally (mount ~/.azure) or the fixture (AMO_DISCOVERY_FIXTURE=1).
 # In Azure, run from infrastructure/terraform/appliance-azure instead (Container Apps + managed identity).
 services:
