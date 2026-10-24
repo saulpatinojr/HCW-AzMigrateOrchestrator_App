@@ -4,7 +4,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { EntraTokenValidator, credentialFromEnv, WorkloadIdentityCredential, ManagedIdentityCredential, CachingCredential, StaticTokenCredential } from "./index.js";
+import { EntraTokenValidator, CLOCK_SKEW_SECONDS, credentialFromEnv, WorkloadIdentityCredential, ManagedIdentityCredential, CachingCredential, StaticTokenCredential } from "./index.js";
 
 const TENANT = "11111111-2222-3333-4444-555555555555";
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -12,7 +12,7 @@ const jwk = publicKey.export({ format: "jwk" }) as { n: string; e: string };
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
 function mint(claims: Record<string, unknown>, kid = "k1") {
   const h = b64({ alg: "RS256", typ: "JWT", kid });
-  const p = b64({ iss: `https://login.microsoftonline.com/${TENANT}/v2.0`, tid: TENANT, aud: "api://amo", oid: "user-oid", sub: "s", exp: Math.floor(Date.now() / 1000) + 600, ...claims });
+  const p = b64({ iss: `https://login.microsoftonline.com/${TENANT}/v2.0`, tid: TENANT, aud: "api://amo", oid: "user-oid", sub: "s", nbf: Math.floor(Date.now() / 1000) - 5, exp: Math.floor(Date.now() / 1000) + 600, ...claims });
   const sig = sign("RSA-SHA256", Buffer.from(`${h}.${p}`), privateKey).toString("base64url");
   return `${h}.${p}.${sig}`;
 }
@@ -30,6 +30,25 @@ test("valid Entra token passes with roles; tampering, wrong tenant/audience, exp
   assert.equal((await v.validate(mint({ exp: Math.floor(Date.now() / 1000) - 3600 }))).ok, false);
   assert.equal((await v.validate(mint({}, "unknown-kid"))).ok, false);
   assert.equal((await v.validate(undefined)).ok, false);
+});
+
+test("nbf (not before): future rejected like expiry, within skew and past accepted, absent rejected (ticket #46)", async () => {
+  const v = new EntraTokenValidator({ tenantId: TENANT, audiences: ["api://amo"], fetchImpl: jwksFetch });
+  const now = Math.floor(Date.now() / 1000);
+  const future = await v.validate(mint({ nbf: now + 3600 }));
+  const expired = await v.validate(mint({ exp: now - 3600 }));
+  assert.deepEqual(future, { ok: false, reason: "expired" });
+  assert.deepEqual(future, expired);
+  assert.equal((await v.validate(mint({ nbf: now + CLOCK_SKEW_SECONDS + 30 }))).ok, false);
+  assert.equal((await v.validate(mint({ nbf: now + 30 }))).ok, true);
+  assert.equal((await v.validate(mint({ nbf: now - 3600 }))).ok, true);
+  assert.equal((await v.validate(mint({ nbf: undefined }))).ok, false);
+  assert.equal((await v.validate(mint({ nbf: "0" }))).ok, false);
+  // A fixed clock makes the boundary exact.
+  const fixed = new EntraTokenValidator({ tenantId: TENANT, audiences: ["api://amo"], fetchImpl: jwksFetch, now: () => 1_000_000_000_000 });
+  const at = (nbf: number) => fixed.validate(mint({ nbf, exp: 1_000_000_600 }));
+  assert.equal((await at(1_000_000_000 + CLOCK_SKEW_SECONDS)).ok, true);
+  assert.equal((await at(1_000_000_000 + CLOCK_SKEW_SECONDS + 1)).ok, false);
 });
 
 test("credentialFromEnv refuses client secrets and requires WIF inputs", () => {

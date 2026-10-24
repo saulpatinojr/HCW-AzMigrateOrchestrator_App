@@ -2,7 +2,7 @@ import { createPublicKey, verify as cryptoVerify, type KeyObject } from "node:cr
 
 /**
  * Microsoft Entra ID access-token validation for the appliance API (ADR-0022): RS256 via the tenant's JWKS,
- * issuer/audience/tenant/expiry checks, app-role extraction. No external JWT library.
+ * issuer/audience/tenant/expiry/not-before checks, app-role extraction. No external JWT library.
  */
 export interface EntraValidatorOptions {
   tenantId: string;
@@ -24,11 +24,15 @@ export interface EntraClaims {
   name?: string;
   preferred_username?: string;
   exp: number;
+  nbf: number;
   aud: string;
   iss: string;
 }
 
 interface Jwk { kid: string; kty: string; n: string; e: string; use?: string }
+
+/** Clock skew tolerated between this host and Entra when checking `exp` and `nbf`, in seconds. */
+export const CLOCK_SKEW_SECONDS = 60;
 
 const b64url = (s: string): Buffer => Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64");
 
@@ -76,7 +80,10 @@ export class EntraTokenValidator {
     const sigOk = cryptoVerify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), key, b64url(parts[2]));
     if (!sigOk) return { ok: false, reason: "bad signature" };
     const nowS = Math.floor(this.now() / 1000);
-    if (typeof claims.exp !== "number" || claims.exp < nowS - 60) return { ok: false, reason: "expired" };
+    if (typeof claims.exp !== "number" || claims.exp < nowS - CLOCK_SKEW_SECONDS) return { ok: false, reason: "expired" };
+    // Entra access tokens always carry `nbf`; like `exp`, a missing or non-numeric value fails closed. Same reason string as
+    // an expired token so a caller learns nothing more about why the token was refused.
+    if (typeof claims.nbf !== "number" || claims.nbf > nowS + CLOCK_SKEW_SECONDS) return { ok: false, reason: "expired" };
     if (!this.issuers.includes(claims.iss)) return { ok: false, reason: "issuer mismatch" };
     if (claims.tid !== this.opts.tenantId) return { ok: false, reason: "tenant mismatch" };
     if (!this.opts.audiences.includes(claims.aud)) return { ok: false, reason: "audience mismatch" };

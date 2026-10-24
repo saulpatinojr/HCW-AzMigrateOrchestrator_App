@@ -136,6 +136,10 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Not executed:** the new `scanners.yml` jobs and the CodeQL `actions` language have never run; their first result is the pull request that adds them. The issue forms have not been seen in GitHub's "New issue" chooser. No Docker or hadolint here.
 - **Limitation, recorded:** `markdownlint-cli2` with `.markdownlint.jsonc` (MD013, MD033, MD034, MD041, MD060 off; `samples/` ignored) still reports 81 findings, mostly MD022 and MD032 in older ADRs and `REFACTOR_APP.md`. Nothing in CI runs markdownlint. The scanners are report-only and are not required checks; OpenSSF Scorecard does not run on pull requests, and its results are not published to the public Scorecard service.
 
+## Entra `nbf` check, ticket #46 (2026-10-24)
+
+Ran on Node 26.12.1: `npm ci`, `npm test` (126 passed, 0 failed, including the new `nbf` test and the appliance API tests), `npm run rules:validate` and `npm run packages:verify`. Not run: Docker, Terraform, a live Entra sign-in. The role / assignment-required half of #46 is not implemented (owner decision pending).
+
 ## Not implemented
 
 Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTML reports; rate limiting and concurrency bounds (delivered downstream in `_Addon/apps/lab-api`, ADR-0030); persistence of enterprise assessments; cost/capacity live checks (agent defined, returns unknown without authenticated APIs).
