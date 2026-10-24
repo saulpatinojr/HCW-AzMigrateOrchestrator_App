@@ -121,6 +121,13 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Not executed here:** a Docker build on this machine (no Docker daemon; CI builds the image), and `terraform plan` against Azure. The `image_ref` validation (exact `@sha256:` plus 64 hexadecimal characters) has not been exercised in a real deployment because no appliance image digest exists for `v0.3.0` or `v0.3.1`: the `publish-images` job was skipped, not failed, for both because `DOCKERHUB_ENABLED` is not set (ticket #42).
 - **Limitation, recorded:** the `v0.3.1` tag was moved once before the release was published (the run history shows `publish-images` at the `v0.3.0` commit, then at the final commit). The published assets match the downstream pins; the tag rulesets applied on 2026-10-24 prevent a repeat.
 
+## Tickets #43, #49, #50, #51 and two new consistency tests (2026-10-24)
+
+- **Executed (Linux, Node 26.12.1):** `npm ci`; `npm test`: 125 pass, 0 fail; `npm run rules:validate`: 35 rules, snapshot 1.0.35, checksum unchanged (`f5794584...ed888f`); `npm run packages:verify`: passed. `actionlint` 1.7.7 on `ci.yml`: clean. The new startup refusals were also run by hand: `NODE_ENV=production node apps/appliance-api/dist/server.js` with no settings exits 1 with the message; with placeholder all-zero tenant and client IDs it starts and listens.
+- **Executed (digests):** the multi-platform index digests for `node:26-bookworm-slim` and `postgres:16-alpine` were read anonymously from Docker Hub on 2026-10-24.
+- **Not executed:** a Docker build or run of the appliance image (no Docker daemon here; the `appliance-image` CI job builds it, and its changed start-up steps have not run yet), `terraform fmt`/`validate` (Terraform is not installed here; no Terraform file changed in this change set), and anything against a real tenant.
+- **Limitation, recorded:** the production start-up check looks only at `AMO_ENTRA_TENANT_ID` and `AMO_ENTRA_CLIENT_ID` being non-empty; it does not contact Entra to prove they are right. "Production" means `NODE_ENV=production`; a deployment that clears that variable gets the old behaviour (starts, routes answer 401). The worker is not covered by the Entra check (it already exits 2 without a tenant).
+
 ## Node 26 enforcement, scanners, issue forms and doc lint (2026-10-24)
 
 - **Executed (Linux, Node 26.12.1 from the npm `node` package, npm 10.9.4):** `npm ci`; `npm test`: 110 pass, 0 fail; `npm run rules:validate`: 35 rules, snapshot 1.0.35; `npm run packages:verify`: passed.
