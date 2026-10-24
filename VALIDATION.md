@@ -24,7 +24,7 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Coder lab:** provider abstraction with tests; template authored; **not validated** against a live Coder deployment; workspace image `amo-lab-workspace` not yet built/published.
 - **Rules:** 34 rules cover the 24 required types + 10 extras. Microsoft Learn URLs and support statements were authored from documentation knowledge on 2026-10-03 and **not fetched live** here; several support states are marked `conditional` where the matrix has caveats. Required before publication: open every `documentationSources[].url`, confirm each `support` state against the current move-support matrix, and bump `reviewDate`.
 - **Terraform generation:** modular scaffolding for 16 resource types; import blocks and drift detection deliberately deferred (ADR-0012). Generated output was **not** run through `terraform validate` here (binary absent); `iac-validate.yml` covers the repository's own Terraform in CI.
-- **Infrastructure:** `Dockerfile.demo`, compose files, Caddyfile, VPS Terraform and cloud-init were **not** built or applied (no docker/terraform). Image tags are pinned by tag, not digest; GitHub Actions are pinned by version tag, not SHA — both flagged in-file and must be converted before enabling branch protection.
+- **Infrastructure:** `Dockerfile.demo`, compose files, Caddyfile, VPS Terraform and cloud-init were **not** built or applied (no docker/terraform). Base images are now pinned by digest (ticket #49) and GitHub Actions by commit SHA (superseding this note, which dates from the first build).
 - **PowerShell:** `scripts/package-repository.ps1` and generated `.ps1` scaffolding were not executed (no pwsh). Bash equivalents were executed.
 - **Demo UX:** 27 of 29 §18 items present; "Open in Coder" and the guided lab appear only when a workspace provider is configured.
 - **Observability:** structured redacted logging implemented; OpenTelemetry exporter not wired (ADR-0014).
@@ -141,7 +141,7 @@ These are the checks that still need a machine with Docker, Terraform or an Azur
 2. Terraform: `terraform -chdir=infrastructure/terraform/appliance-azure fmt -check`, then `terraform -chdir=infrastructure/terraform/appliance-azure init -backend=false`, then `terraform -chdir=infrastructure/terraform/appliance-azure validate`. Run `terraform validate` on a generated bundle's `terraform/` directory as well.
 3. Packaging: `pwsh -File scripts/package-repository.ps1` (or `bash scripts/package-repository.sh`); `pwsh -Command "Invoke-ScriptAnalyzer <bundle>/scripts/powershell/Invoke-ArmMove.ps1"` on a generated bundle.
 4. Rules: verify every rule URL and support state, then `npm run rules:validate`, `amo rules report` and `amo rules snapshot`.
-5. Repository settings: actions are pinned by commit and the main branch and release tags are protected (rulesets created 2026-10-24 by the `repository-admin` workflow); base images are still to be pinned by digest (ticket #49).
+5. Repository settings: actions are pinned by commit and the main branch and release tags are protected (rulesets created 2026-10-24 by the `repository-admin` workflow); base images are pinned by digest (ticket #49, 2026-10-24).
 6. Seed the GitHub Copilot review handshake PRs listed in `docs/governance/github-copilot-code-reviewer-pack-VALIDATION_REPORT.md`.
 
 The lab web, Playwright end-to-end and Coder template checks that used to be listed here belong to `saulpatinojr/HCW-AzMigrateOrchestrator_Addon`.

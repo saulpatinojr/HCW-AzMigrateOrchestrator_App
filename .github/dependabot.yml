@@ -15,3 +15,7 @@ updates:
   - package-ecosystem: docker
     directory: /infrastructure/docker
     schedule: { interval: weekly }
+  # The appliance compose file (postgres) lives at the repository root; the docker entry above only reads the Dockerfile.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly }
