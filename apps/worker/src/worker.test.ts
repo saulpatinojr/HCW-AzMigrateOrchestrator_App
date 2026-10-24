@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryRepository } from "@amo/appliance-api";
 import { StaticTokenCredential } from "@amo/azure-auth";
-import { runOnce } from "./index.js";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { runOnce, workerConfigFromEnv } from "./index.js";
 
 test("worker polls due operations, respects retry-after, and audits completion", async () => {
   const repo = new InMemoryRepository();
@@ -15,4 +17,20 @@ test("worker polls due operations, respects retry-after, and audits completion",
   assert.equal(r.completed[0].id, "a");
   assert.equal((await repo.pendingOperations()).length, 1);
   assert.ok(repo.events.some((e) => e.event === "operation.succeeded"));
+});
+
+test("worker startup refuses credential-style environment variables (ticket #50)", () => {
+  for (const [k, re] of [["AZURE_CLIENT_CERTIFICATE_PATH", /AZURE_CLIENT_CERTIFICATE_PATH/], ["AZURE_USERNAME", /AZURE_USERNAME/], ["AZURE_CLIENT_SECRET", /client secret/], ["AZURE_PASSWORD", /client secret/]] as const) {
+    assert.throws(() => workerConfigFromEnv({ [k]: "x" }), re, k);
+  }
+  assert.doesNotThrow(() => workerConfigFromEnv({ AMO_ENTRA_TENANT_ID: "t" }));
+});
+
+test("the worker process exits non-zero and names the variable, before connecting to anything", () => {
+  const main = fileURLToPath(new URL("./main.js", import.meta.url));
+  for (const k of ["AZURE_CLIENT_CERTIFICATE_PATH", "AZURE_USERNAME"]) {
+    const r = spawnSync(process.execPath, [main], { env: { PATH: process.env.PATH ?? "", [k]: "x" }, encoding: "utf8", timeout: 20000 });
+    assert.notEqual(r.status, 0, k);
+    assert.match(r.stderr, new RegExp(k), k);
+  }
 });

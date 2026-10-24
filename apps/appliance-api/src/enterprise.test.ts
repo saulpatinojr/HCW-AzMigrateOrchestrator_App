@@ -35,6 +35,14 @@ test("refuses to start with a client secret in the environment; roles map to lev
   assert.equal(principalFromClaims({ oid: "o", roles: ["Migration.Plan"] })?.grantedLevel, "planning");
 });
 
+test("refuses a certificate path or a user name identity (ticket #50); existing refusals unchanged", () => {
+  assert.throws(() => configFromEnv({ AZURE_CLIENT_CERTIFICATE_PATH: "/certs/app.pem" }), /AZURE_CLIENT_CERTIFICATE_PATH.*not supported/);
+  assert.throws(() => configFromEnv({ AZURE_USERNAME: "someone@example.test" }), /AZURE_USERNAME.*not supported/);
+  assert.throws(() => configFromEnv({ AZURE_USERNAME: "" }), /AZURE_USERNAME/, "presence alone is refused");
+  for (const k of ["AZURE_CLIENT_SECRET", "AMO_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PASSWORD", "AZURE_PASSWORD"]) assert.throws(() => configFromEnv({ [k]: "x" }), /client secret/, k);
+  assert.doesNotThrow(() => configFromEnv({ AMO_ENTRA_TENANT_ID: "t", AZURE_CLIENT_ID: "c" }));
+});
+
 test("unauthenticated requests fail closed; health is public", async () => {
   assert.equal((await call("/api/health", null)).status, 200);
   assert.equal((await call("/api/assessments", null)).status, 401);

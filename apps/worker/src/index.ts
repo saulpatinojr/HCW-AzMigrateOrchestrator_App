@@ -3,10 +3,15 @@
  * updates their status in the repository and writes audit events on completion. Read-only against Azure: it only GETs
  * operation status URLs. Runs as a separate Container App job/replica sharing the same repository and identity.
  */
-import type { AssessmentRepository } from "@amo/appliance-api";
+import { configFromEnv, type AssessmentRepository, type EnterpriseConfig } from "@amo/appliance-api";
 import type { TokenCredential } from "@amo/azure-auth";
 import { pollOperation, isTerminal, type TrackedOperation } from "@amo/azure-execution";
 import { noopLogger, type Logger } from "@amo/observability";
+
+/** Startup check for the worker: the same credential-style environment refusals as the API (client secrets, passwords, certificate path, user name). Throws before anything connects. */
+export function workerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): EnterpriseConfig {
+  return configFromEnv(env);
+}
 
 export interface WorkerOptions {
   repository: AssessmentRepository;

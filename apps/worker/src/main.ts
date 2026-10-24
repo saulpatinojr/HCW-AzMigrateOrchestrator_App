@@ -1,7 +1,7 @@
-import { configFromEnv, depsFromEnv, repositoryFromEnv } from "@amo/appliance-api";
+import { depsFromEnv, repositoryFromEnv } from "@amo/appliance-api";
 import { createLogger } from "@amo/observability";
-import { runForever } from "./index.js";
-const cfg = configFromEnv();
+import { runForever, workerConfigFromEnv } from "./index.js";
+const cfg = workerConfigFromEnv();
 const deps = depsFromEnv(cfg);
 if (!deps.credential) { console.error("worker requires an Azure credential (AMO_ENTRA_TENANT_ID + AMO_CREDENTIAL_KIND)"); process.exit(2); }
 const repository = await repositoryFromEnv(process.env, deps.credential);

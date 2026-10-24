@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { Orchestrator, AGENTS } from "@amo/agents";
 import { FixtureDiscoveryProvider, type DiscoveryProvider } from "@amo/azure-discovery";
 import { ResourceGraphDiscoveryProvider, MoveValidator, ScopeInventory } from "@amo/azure-arm";
-import { credentialFromEnv, EntraTokenValidator, StaticTokenCredential, type TokenCredential } from "@amo/azure-auth";
+import { credentialFromEnv, refuseUnsupportedIdentityEnv, EntraTokenValidator, StaticTokenCredential, type TokenCredential } from "@amo/azure-auth";
 import { ResourceMoverClient, type MoverAction } from "@amo/azure-execution";
 import { gate, isAllowed, APPROVAL_REQUIRED_OPERATIONS, type Principal, type AuthorizationLevel, type ApprovalOperation } from "@amo/authorization";
 import { createLogger, type Logger } from "@amo/observability";
@@ -25,6 +25,7 @@ export interface EnterpriseConfig {
 }
 
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): EnterpriseConfig {
+  refuseUnsupportedIdentityEnv(env);
   for (const k of Object.keys(env)) if (/^(AMO_|AZURE_).*(SECRET|PASSWORD)$/i.test(k)) throw new Error(`refusing to start: ${k} looks like a client secret; use managed identity or workload identity federation`);
   const clientId = env.AMO_ENTRA_CLIENT_ID ?? null;
   return { tenantId: env.AMO_ENTRA_TENANT_ID ?? null, clientId, audiences: [env.AMO_ENTRA_AUDIENCE, clientId, clientId ? `api://${clientId}` : null].filter((x): x is string => !!x), credentialKind: (env.AMO_CREDENTIAL_KIND as EnterpriseConfig["credentialKind"]) ?? "managed-identity", useFixture: env.AMO_DISCOVERY_FIXTURE === "1" };
