@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- CI: the new job `appliance-image` (ticket #45) builds the appliance image without pushing it, lints `infrastructure/docker/Dockerfile.appliance` with hadolint (fails on errors only), scans the image with Trivy (HIGH and CRITICAL, fixed only, the same settings as the release workflow) and starts it with no secrets to check `/api/health`. All actions are pinned by commit; `hadolint/hadolint-action` is new (v3.5.0).
 - Documentation drift after the repository split (ticket #47): `requirements-ledger.md`, `traceability-matrix.md` and `architecture/overview.md` now mark the lab web front paths (`apps/lab-api`, `apps/lab-web`, `apps/ui-harness`, `docs/demo/*`, `infrastructure/coder`) as downstream, the ledger counts 35 rules (snapshot 1.0.35), the README no longer states a test count, the `VALIDATION.md` and `CHANGELOG.md` headers name this repository correctly, "How to complete runtime validation" lists only checks that exist here, and the Azure deployment guide reads the subscription from `az account show` instead of a placeholder (PowerShell and bash). `repository.manifest.json` still says 0.2.1 against `package.json` 0.3.1; no test governs that field, so it is left for a decision.
 - `CLAUDE.md`: secrets are never written into chat, pull requests, issues or documentation; the owner enters them in the secure settings field or through a script that reads them from a file.
 
