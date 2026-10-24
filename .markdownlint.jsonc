@@ -1,0 +1,11 @@
+{
+  // Minimal markdownlint settings. Nothing in CI runs markdownlint yet, so this only helps editors and local runs
+  // (npx markdownlint-cli2 "**/*.md" "#node_modules" "#dist-packages" "#samples"). Rules that fight this repository's style are off.
+  "default": true,
+  "MD013": false,
+  "MD033": false,
+  "MD034": false,
+  "MD041": false,
+  "MD060": false,
+  "MD024": { "siblings_only": true }
+}
