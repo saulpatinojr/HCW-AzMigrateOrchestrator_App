@@ -3,7 +3,7 @@
 `publish-images.yml` builds `infrastructure/docker/Dockerfile.appliance` on every `v*` tag, scans it (Trivy, HIGH/CRITICAL,
 fixed only) and pushes `docker.io/hybridcloudworks/hcw-app-migration-appliance` with provenance and SBOM, then prints the
 immutable digest in the run summary. Deployments (`infrastructure/terraform/appliance-azure`, `image_ref`) reference that
-digest, never a tag. Moved from GHCR on 2026-10-10 so both repositories publish to the one registry the website's lab host
+digest, never a tag, and Terraform now enforces that: `image_ref` has no default and must end in `@sha256:` followed by 64 hexadecimal characters. Moved from GHCR on 2026-10-10 so both repositories publish to the one registry the website's lab host
 already pulls from (`REFACTOR_APP.md` section 7, optional item).
 
 Login is the **Docker OIDC connection**: `docker/login-action` v4.5.0 and later, with no password, registry `docker.io` and
