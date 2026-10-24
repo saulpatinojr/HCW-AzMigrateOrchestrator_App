@@ -75,7 +75,7 @@ so the addon is technically unable to reach Azure. Decision records: [ADR-0028](
 Requires Node 26 ([ADR-0029](docs/adr/ADR-0029-node-26-runtime-floor.md)) or the devcontainer.
 
 ```bash
-npm ci && npm test                       # build, assemble the publishable packages, run 88 tests
+npm ci && npm test                       # build, assemble the publishable packages, run the tests
 npm run rules:validate                   # 35 rules, checksummed snapshot
 npm run packages:verify                  # pack both packages and exercise them from an empty consumer project
 node apps/cli/dist/main.js assess --csv samples/resources-csv/sample-resources.csv --out ./out --region westus3 --zip

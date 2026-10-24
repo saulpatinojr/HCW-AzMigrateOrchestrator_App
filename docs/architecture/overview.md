@@ -16,7 +16,7 @@ resources.csv ──► csv-ingestion ──┐                        Azure (en
                                    ▼
                           safety agent (blocks CRITICAL findings)
                                    ▼
-            apps/cli · apps/lab-api (+ demo-web) · apps/appliance-api
+            apps/cli · apps/appliance-api   (the demo web front, apps/lab-api + demo-web, is downstream)
 ```
 
 - **One core, two editions.** The demo is the same engine with `edition: "demo"`: no authenticated provider can be

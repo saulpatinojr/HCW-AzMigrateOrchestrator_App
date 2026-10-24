@@ -1,6 +1,6 @@
 # VALIDATION.md
 
-> **Repository split (2026-10-04, ADR-0027).** This file predates the split of the monorepo into `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` and `saulpatinojr/HCW-AzMigrateOrchestrator_App`. This repository (`saulpatinojr/HCW-AzMigrateOrchestrator_Addon`) holds the shared core, rules, CLI, lab API, lab web harness and the UI package. Entries below describe the monorepo as it was; paths that moved to the sibling repository are noted there.
+> **Repository split (2026-10-04, ADR-0027).** This file predates the split of the monorepo into `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` and `saulpatinojr/HCW-AzMigrateOrchestrator_App`. This repository (`saulpatinojr/HCW-AzMigrateOrchestrator_App`, the upstream product, ADR-0028) holds the shared core, rules, CLI, the explorer UI components and the Azure appliance; the lab API and lab web harness live downstream in `saulpatinojr/HCW-AzMigrateOrchestrator_Addon`. Entries below describe the monorepo as it was; paths that moved to the sibling repository are noted there.
 
 Build date: 2026-10-03 · Environment: Ubuntu container, Node 22.22, npm 10.9, zip, python3. **Not available:** terraform, pwsh,
 docker, network access to Azure/GitHub/Microsoft Learn. Everything below distinguishes what was executed from what was not.
@@ -118,12 +118,16 @@ Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTM
 
 ## How to complete runtime validation
 
-1. `docker compose up --build` → open http://localhost:8080, run the sample, download the bundle, delete.
-2. `terraform -chdir=infrastructure/terraform/demo-vps fmt -check && terraform init -backend=false && terraform validate`; same for `infrastructure/coder/template`; run `terraform validate` on a generated bundle's `terraform/` directory.
-3. `pwsh -File scripts/package-repository.ps1`; `pwsh -Command "Invoke-ScriptAnalyzer <bundle>/scripts/powershell/Invoke-ArmMove.ps1"`.
-4. Verify every rule URL and support state; re-snapshot.
-5. Pin actions/images by SHA/digest; enable branch protection with `ci`, `security`, `iac-validate` as required checks.
+These are the checks that still need a machine with Docker, Terraform or an Azure sign-in. Run them from a clean clone.
+
+1. Build the appliance image: `docker build -f infrastructure/docker/Dockerfile.appliance -t amo-appliance:dev .` (the pull request build and scan job tracks this, ticket #45).
+2. Terraform: `terraform -chdir=infrastructure/terraform/appliance-azure fmt -check`, then `terraform -chdir=infrastructure/terraform/appliance-azure init -backend=false`, then `terraform -chdir=infrastructure/terraform/appliance-azure validate`. Run `terraform validate` on a generated bundle's `terraform/` directory as well.
+3. Packaging: `pwsh -File scripts/package-repository.ps1` (or `bash scripts/package-repository.sh`); `pwsh -Command "Invoke-ScriptAnalyzer <bundle>/scripts/powershell/Invoke-ArmMove.ps1"` on a generated bundle.
+4. Rules: verify every rule URL and support state, then `npm run rules:validate`, `amo rules report` and `amo rules snapshot`.
+5. Repository settings: actions are pinned by commit and the main branch and release tags are protected (rulesets created 2026-10-24 by the `repository-admin` workflow); base images are still to be pinned by digest (ticket #49).
 6. Seed the GitHub Copilot review handshake PRs listed in `docs/governance/github-copilot-code-reviewer-pack-VALIDATION_REPORT.md`.
+
+The lab web, Playwright end-to-end and Coder template checks that used to be listed here belong to `saulpatinojr/HCW-AzMigrateOrchestrator_Addon`.
 
 ## Archive
 

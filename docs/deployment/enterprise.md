@@ -5,8 +5,23 @@ with dependency-free credentials.
 
 ## 1. Provision
 
+Sign in with `az login` first (no secrets). Both shells use the subscription you are signed in to as the hosting subscription.
+
+PowerShell:
+
+```powershell
+$env:ARM_SUBSCRIPTION_ID = az account show --query id --output tsv
+Set-Location infrastructure/terraform/appliance-azure
+Copy-Item terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan -out appliance.plan
+terraform apply appliance.plan
+```
+
+bash:
+
 ```bash
-export ARM_SUBSCRIPTION_ID=...   # hosting subscription; authenticate with az login (no secrets)
+export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
 cd infrastructure/terraform/appliance-azure && cp terraform.tfvars.example terraform.tfvars
 terraform init && terraform plan -out appliance.plan && terraform apply appliance.plan
 ```
