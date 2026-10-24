@@ -38,6 +38,12 @@ test("credentialFromEnv refuses client secrets and requires WIF inputs", () => {
   assert.equal(credentialFromEnv({ AMO_CREDENTIAL_KIND: "managed-identity" }).kind, "managed-identity");
 });
 
+test("credentialFromEnv refuses a certificate path and a user name (ticket #50)", () => {
+  assert.throws(() => credentialFromEnv({ AZURE_CLIENT_CERTIFICATE_PATH: "/certs/app.pem" }), /AZURE_CLIENT_CERTIFICATE_PATH/);
+  assert.throws(() => credentialFromEnv({ AZURE_USERNAME: "someone@example.test", AMO_CREDENTIAL_KIND: "azure-cli" }), /AZURE_USERNAME/);
+  for (const k of ["AZURE_CLIENT_SECRET", "AMO_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PASSWORD", "AZURE_PASSWORD"]) assert.throws(() => credentialFromEnv({ [k]: "x" }), /client secrets/, k);
+});
+
 test("workload identity exchanges the federated token file for an ARM token", async () => {
   const file = join(tmpdir(), `fed-${Date.now()}`);
   writeFileSync(file, "federated-assertion");

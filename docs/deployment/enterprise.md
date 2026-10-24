@@ -72,8 +72,10 @@ resource groups) is granted **per engagement** and removed afterwards; the base 
 ## 4. Local development
 
 `docker compose -f docker-compose.appliance.yml up --build` with `AMO_DISCOVERY_FIXTURE=1` (no Azure) or
-`AMO_CREDENTIAL_KIND=azure-cli` with `~/.azure` mounted. Without `AMO_ENTRA_TENANT_ID`/`CLIENT_ID` every protected route
-returns 401 by design.
+`AMO_CREDENTIAL_KIND=azure-cli` with `~/.azure` mounted. The appliance image runs in production mode (`NODE_ENV=production`), so without `AMO_ENTRA_TENANT_ID` and
+`AMO_ENTRA_CLIENT_ID` it refuses to start and prints which one is missing (exit code 1); an empty value counts as missing.
+Outside production mode (for example `npm run appliance:api` on a laptop) it still starts, and every protected route returns
+401 by design.
 
 ## 5. Not yet validated against a real tenant
 

@@ -82,7 +82,19 @@ export class CachingCredential implements TokenCredential {
   }
 }
 
+/**
+ * Credential-style variables that must never be present, even though they do not end in SECRET or PASSWORD: a
+ * certificate path (client-certificate identity) and a user name (user-name and password identity). Only managed
+ * identity, workload identity federation or the signed-in CLI are supported. Presence alone is refused, empty or not.
+ */
+export const REFUSED_IDENTITY_ENV = ["AZURE_CLIENT_CERTIFICATE_PATH", "AZURE_USERNAME"] as const;
+
+export function refuseUnsupportedIdentityEnv(env: NodeJS.ProcessEnv = process.env): void {
+  for (const k of REFUSED_IDENTITY_ENV) if (k in env) throw new Error(`refusing to start: ${k} configures a certificate or user-name identity, which is not supported; use managed identity or workload identity federation`);
+}
+
 export function credentialFromEnv(env: NodeJS.ProcessEnv = process.env): TokenCredential {
+  refuseUnsupportedIdentityEnv(env);
   for (const k of Object.keys(env)) if (/^(AMO_|AZURE_).*(CLIENT_SECRET|PASSWORD)$/i.test(k)) throw new Error(`refusing ${k}: client secrets are not a supported credential; use managed identity or workload identity federation`);
   const kind = env.AMO_CREDENTIAL_KIND ?? "managed-identity";
   switch (kind) {

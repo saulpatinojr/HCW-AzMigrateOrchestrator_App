@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { Orchestrator, AGENTS } from "@amo/agents";
 import { FixtureDiscoveryProvider, type DiscoveryProvider } from "@amo/azure-discovery";
 import { ResourceGraphDiscoveryProvider, MoveValidator, ScopeInventory } from "@amo/azure-arm";
-import { credentialFromEnv, EntraTokenValidator, StaticTokenCredential, type TokenCredential } from "@amo/azure-auth";
+import { credentialFromEnv, refuseUnsupportedIdentityEnv, EntraTokenValidator, StaticTokenCredential, type TokenCredential } from "@amo/azure-auth";
 import { ResourceMoverClient, type MoverAction } from "@amo/azure-execution";
 import { gate, isAllowed, APPROVAL_REQUIRED_OPERATIONS, type Principal, type AuthorizationLevel, type ApprovalOperation } from "@amo/authorization";
 import { createLogger, type Logger } from "@amo/observability";
@@ -25,9 +25,24 @@ export interface EnterpriseConfig {
 }
 
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): EnterpriseConfig {
+  refuseUnsupportedIdentityEnv(env);
   for (const k of Object.keys(env)) if (/^(AMO_|AZURE_).*(SECRET|PASSWORD)$/i.test(k)) throw new Error(`refusing to start: ${k} looks like a client secret; use managed identity or workload identity federation`);
   const clientId = env.AMO_ENTRA_CLIENT_ID ?? null;
   return { tenantId: env.AMO_ENTRA_TENANT_ID ?? null, clientId, audiences: [env.AMO_ENTRA_AUDIENCE, clientId, clientId ? `api://${clientId}` : null].filter((x): x is string => !!x), credentialKind: (env.AMO_CREDENTIAL_KIND as EnterpriseConfig["credentialKind"]) ?? "managed-identity", useFixture: env.AMO_DISCOVERY_FIXTURE === "1" };
+}
+
+/**
+ * Startup refusal for production (ticket #51). In production (NODE_ENV=production, which the appliance image sets) the API
+ * must not come up half configured: without a tenant and an app registration every route would answer 401 while
+ * /api/health looked fine. Empty values count as missing. Outside production the API still starts unconfigured, as the
+ * tests and local exploration rely on; the routes fail closed either way, and this check never relaxes that.
+ */
+export function assertProductionConfig(cfg: EnterpriseConfig, env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  const missing: string[] = [];
+  if (!cfg.tenantId) missing.push("AMO_ENTRA_TENANT_ID");
+  if (!cfg.clientId) missing.push("AMO_ENTRA_CLIENT_ID");
+  if (missing.length) throw new Error(`refusing to start in production: Entra ID sign-in is not configured (missing ${missing.join(" and ")}); set them as described in docs/deployment/enterprise.md`);
 }
 
 export function principalFromClaims(claims: { oid?: string; roles?: string[] } | null): Principal | null {

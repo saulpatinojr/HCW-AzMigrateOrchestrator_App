@@ -74,9 +74,15 @@ jobs:
       - name: Scan (HIGH/CRITICAL, fixed only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with: { image-ref: "amo-appliance:ci", exit-code: "1", severity: "HIGH,CRITICAL", ignore-unfixed: true }
-      - name: Start the container with no secrets and check /api/health
+      - name: The image refuses to start in production without Entra sign-in settings (ticket #51)
         run: |
-          docker run -d --name amo-appliance -p 8081:8081 amo-appliance:ci
+          if docker run --rm amo-appliance:ci; then echo "the image started without sign-in settings"; exit 1; fi
+          out="$(docker run --rm amo-appliance:ci 2>&1 || true)"
+          echo "$out"
+          echo "$out" | grep -q "AMO_ENTRA_TENANT_ID and AMO_ENTRA_CLIENT_ID"
+      - name: Start the container with placeholder sign-in settings and no secrets, check /api/health
+        run: |
+          docker run -d --name amo-appliance -p 8081:8081 -e AMO_ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000 -e AMO_ENTRA_CLIENT_ID=00000000-0000-0000-0000-000000000001 amo-appliance:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8081/api/health; then echo; exit 0; fi
             sleep 2

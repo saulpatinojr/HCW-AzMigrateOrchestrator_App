@@ -1,6 +1,13 @@
-import { configFromEnv, createEnterpriseApi, depsFromEnv, repositoryFromEnv } from "./index.js";
+import { assertProductionConfig, configFromEnv, createEnterpriseApi, depsFromEnv, repositoryFromEnv } from "./index.js";
 
-const cfg0 = configFromEnv();
+let cfg0: ReturnType<typeof configFromEnv>;
+try {
+  cfg0 = configFromEnv();
+  assertProductionConfig(cfg0);
+} catch (e) {
+  process.stderr.write(`${JSON.stringify({ msg: (e as Error).message, edition: "enterprise" })}\n`);
+  process.exit(1);
+}
 const deps0 = depsFromEnv(cfg0);
 const repo = await repositoryFromEnv(process.env, deps0.credential);
 const server = createEnterpriseApi(cfg0, { ...deps0, repository: repo });
