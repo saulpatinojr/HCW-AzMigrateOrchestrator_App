@@ -109,7 +109,7 @@ A `v*` tag publishes, only after the checks pass:
 
 | Artifact | Where | Gate |
 |---|---|---|
-| Appliance image | `docker.io/hybridcloudworks/hcw-app-migration-appliance` | Built locally, scanned (Trivy, HIGH/CRITICAL fixed), then pushed through the Docker OIDC connection with provenance and SBOM (`docs/release/docker-hub.md`). Deploy by digest, never by tag |
+| Appliance image | `docker.io/hybridcloudworks/hcw-app-migration-appliance` | Built locally, scanned (Trivy, HIGH/CRITICAL fixed), then pushed through the Docker OIDC connection with provenance and SBOM (`docs/release/docker-hub.md`). Deploy by digest, never by tag. **Only while the repository variable `DOCKERHUB_ENABLED` is `true`:** the job was skipped (not failed) for `v0.3.0` and `v0.3.1`, so no image exists for them yet (ticket #42). Terraform refuses any `image_ref` that is not an exact digest |
 | CLI binaries | GitHub Releases, three platforms, with `SHA256SUMS-*.txt` and provenance | Each binary smoke-tested (`rules validate` + a sample `assess`) |
 | `@hybridcloudworks/migration-core`, `@hybridcloudworks/migration-ui` | GitHub Release assets (`hybridcloudworks-migration-{core,ui}-<version>.tgz`) with provenance; the downstream edition pins them by URL and hash. npm publishing is optional ([`docs/release/npm-publishing.md`](docs/release/npm-publishing.md)) | Clean-consumer gate (`npm run packages:verify`) against the packed tarballs |
 

@@ -12,6 +12,9 @@ versions and must stay technically unable to reach Azure: `azure-auth`, `azure-a
   public surface, exports or the rules location change. Never claim a check passed that you did not run.
 - A change to any `packages/*` public surface is a change to the published packages and to the downstream edition: say so in
   the PR; releases are semver tags (`v*`), and the addon's `core-update` workflow tests each release before adopting it.
+- **Keep the AddOn informed.** When a change reaches `saulpatinojr/HCW-AzMigrateOrchestrator_Addon` (a `packages/*` public
+  surface, the rule corpus, a release or its assets, the shared tests), add an entry to the AddOn's
+  `docs/whats-new-upstream.md` in the same change set, or say in the PR why none is needed.
 - Rules are data: change `scripts/author-rules.mjs` → `node scripts/author-rules.mjs` → build → `amo rules report` → `amo rules snapshot`. Cite Microsoft Learn with a retrieval date.
 - Golden files (`samples/expected-reports`) change only deliberately via `npm run goldens:update`; explain the diff in the PR.
 - Never weaken: the unauthenticated confidence cap, the web-front edition's inability to construct an Azure provider, the Safety
