@@ -121,6 +121,14 @@ docker, network access to Azure/GitHub/Microsoft Learn. Everything below disting
 - **Not executed here:** a Docker build on this machine (no Docker daemon; CI builds the image), and `terraform plan` against Azure. The `image_ref` validation (exact `@sha256:` plus 64 hexadecimal characters) has not been exercised in a real deployment because no appliance image digest exists for `v0.3.0` or `v0.3.1`: the `publish-images` job was skipped, not failed, for both because `DOCKERHUB_ENABLED` is not set (ticket #42).
 - **Limitation, recorded:** the `v0.3.1` tag was moved once before the release was published (the run history shows `publish-images` at the `v0.3.0` commit, then at the final commit). The published assets match the downstream pins; the tag rulesets applied on 2026-10-24 prevent a repeat.
 
+## Node 26 enforcement, scanners, issue forms and doc lint (2026-10-24)
+
+- **Executed (Linux, Node 26.12.1 from the npm `node` package, npm 10.9.4):** `npm ci`; `npm test`: 110 pass, 0 fail; `npm run rules:validate`: 35 rules, snapshot 1.0.35; `npm run packages:verify`: passed.
+- **Executed (Node 22.22.0):** `npm ci --dry-run` with the new `.npmrc` stops with `EBADENGINE ... Required: {"node":">=26"}` (ticket #55).
+- **Executed:** `actionlint` 1.7.7 on every file in `.github/workflows`: no findings. The two issue forms parse as YAML and use only labels that exist (`bug`, `enhancement`). Action pins were read from the upstream tags with `git ls-remote` (`ossf/scorecard-action` v2.4.4, `google/osv-scanner-action` v2.7.0).
+- **Not executed:** the new `scanners.yml` jobs and the CodeQL `actions` language have never run; their first result is the pull request that adds them. The issue forms have not been seen in GitHub's "New issue" chooser. No Docker or hadolint here.
+- **Limitation, recorded:** `markdownlint-cli2` with `.markdownlint.jsonc` (MD013, MD033, MD034, MD041, MD060 off; `samples/` ignored) still reports 81 findings, mostly MD022 and MD032 in older ADRs and `REFACTOR_APP.md`. Nothing in CI runs markdownlint. The scanners are report-only and are not required checks; OpenSSF Scorecard does not run on pull requests, and its results are not published to the public Scorecard service.
+
 ## Not implemented
 
 Execution beyond Resource Mover; Bicep/ARM mainTemplate for Marketplace; PDF/HTML reports; rate limiting and concurrency bounds (delivered downstream in `_Addon/apps/lab-api`, ADR-0030); persistence of enterprise assessments; cost/capacity live checks (agent defined, returns unknown without authenticated APIs).
