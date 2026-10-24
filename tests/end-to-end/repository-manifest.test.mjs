@@ -9,3 +9,9 @@ test("repository.manifest.json lists real, required files and packaging excludes
   const sh = readFileSync("scripts/package-repository.sh", "utf8");
   for (const e of m.packageExcludes) assert.ok(sh.includes(e.replace(/\/$/, "")), `package-repository.sh does not exclude ${e}`);
 });
+
+test("repository.manifest.json version equals package.json version", () => {
+  const m = JSON.parse(readFileSync("repository.manifest.json", "utf8"));
+  const p = JSON.parse(readFileSync("package.json", "utf8"));
+  assert.equal(m.version, p.version, `repository.manifest.json says ${m.version} but package.json says ${p.version}; change both together`);
+});
