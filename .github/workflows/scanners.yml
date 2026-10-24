@@ -1,0 +1,76 @@
+# Report-only scanners (ticket #54): OSV-Scanner (known-vulnerable dependencies) and OpenSSF Scorecard (repository security rating).
+# Both send their findings to the Security tab (code scanning) and the run summary. Neither fails the run for findings that
+# already exist, and neither is a required check on main, so they cannot turn CI red on day one. Hadolint already runs in
+# the appliance-image job of ci.yml; CodeQL (including the workflow files) is in security.yml.
+# Actions are pinned to full commit SHAs (version in the trailing comment); Dependabot (github-actions ecosystem) proposes updates.
+name: scanners
+on:
+  pull_request:
+  push: { branches: [main] }
+  branch_protection_rule:
+  schedule: [{ cron: "41 5 * * 2" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  osv-scanner:
+    # Scorecard cannot judge pull requests, so only this job runs on them.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Scan the lockfiles (report only)
+        id: osv
+        # The scanner exits non-zero when it finds something; the result is reported, not enforced.
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --format=sarif
+            --output=osv-results.sarif
+            --recursive
+            ./
+      - name: Say what happened in the run summary
+        if: always()
+        run: |
+          if [ "${{ steps.osv.outcome }}" = "success" ]; then
+            echo "OSV-Scanner found no known-vulnerable dependencies in the lockfiles." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "OSV-Scanner reported findings or could not finish (step outcome: ${{ steps.osv.outcome }}). Report only: see the Security tab, code scanning, category osv-scanner." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload the findings to the Security tab
+        if: always() && hashFiles('osv-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with: { sarif_file: osv-results.sarif, category: osv-scanner }
+      - name: Fail when the scanner produced no results at all
+        # Findings stay report-only, but a scanner that died before writing its file must not look like a clean run.
+        if: always() && steps.osv.outcome != 'success' && hashFiles('osv-results.sarif') == ''
+        run: |
+          echo "OSV-Scanner did not produce osv-results.sarif, so nothing was scanned." >&2
+          exit 1
+
+  scorecard:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Run OpenSSF Scorecard (report only; results are not published to the public Scorecard service)
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: false
+      - name: Upload the findings to the Security tab
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with: { sarif_file: scorecard-results.sarif, category: scorecard }

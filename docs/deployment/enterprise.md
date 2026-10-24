@@ -43,20 +43,20 @@ environment + app, Entra app registration with app roles. Follow the `post_apply
 | `Migration.Execute` | controlled-execution | + record approvals; Resource Mover prepare / initiateMove (approval `production-deploy`) / discard |
 | `Migration.Execute.Destructive` | destructive-execution | + commit (approval `data-cutover`), source deletion workflows (future) |
 
-Tokens: authorization-code flow with PKCE in the client; the API validates audience `api://<client_id>` against the tenant
+Tokens: authorization-code flow with PKCE in the client; the API validates audience `api://` followed by the API registration's Application (client) ID against the tenant
 JWKS. Credentials for Azure calls: managed identity in Container Apps (`AMO_CREDENTIAL_KIND=managed-identity`), workload
 identity federation in CI, Azure CLI for local development. `AMO_*SECRET` / `AZURE_*SECRET` variables abort startup.
 
 ## 2b. Web UI
 
 `apps/appliance-web` (Vite + React + MSAL). Register a **second**, public-client SPA app registration with redirect URI
-`https://<web-host>/`, expose the API's `access_as_user` scope on the API registration, and pre-authorize the SPA. Build with
+set to the exact web address where you host the UI, with no slash at the end (the app sends `window.location.origin`, for example `https://` followed by the host name that Static Web Apps shows once you create it, and Microsoft Entra compares the address exactly), expose the API's `access_as_user` scope on the API registration, and pre-authorize the SPA. Build with
 `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_SPA_CLIENT_ID`, `VITE_API_SCOPE`, `VITE_API_BASE_URL` (all public values) and host the
 `dist/` on Static Web Apps or a second Container App. Add the web origin to the API's allowed origins when hosted separately.
 
 ## 2c. Worker
 
-`ca-<name>-worker` runs `node apps/worker/dist/main.js` from the same image with the same identity, polling Azure long-running
+The worker Container App (named `ca-`, your app name, then `-worker`) runs `node apps/worker/dist/main.js` from the same image with the same identity, polling Azure long-running
 operations recorded by the API and auditing their completion (ADR-0026). Locally: the `worker` service in
 `docker-compose.appliance.yml`.
 

@@ -1,0 +1,69 @@
+name: Bug report
+description: Something in the migration core, the amo command line tool, the explorer components or the appliance does not work as expected.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this. Please do not paste secrets, tokens, customer inventories or real tenant or subscription IDs.
+        Security problems go through the private route in [SECURITY.md](https://github.com/saulpatinojr/HCW-AzMigrateOrchestrator_App/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Say what you did and what went wrong, in plain words.
+      placeholder: "I ran amo assess with the sample CSV and the report showed ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: One action per line, with the exact command or page you used.
+      placeholder: |
+        1. Run `npm ci`
+        2. Run `npm test`
+        3. See the failure
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part is affected
+      options:
+        - Migration core (packages)
+        - Rule corpus (rules/)
+        - amo command line tool
+        - Explorer UI components
+        - Appliance API or worker
+        - Appliance web UI
+        - Container image or Terraform
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag, image digest or commit you used (for a clone, run `git rev-parse --short HEAD`).
+      placeholder: "v0.3.1"
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: Run `node --version`. This project needs Node 26 or newer.
+      placeholder: "v26.12.1"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Paste the error text. Remove anything private first.
+      render: shell

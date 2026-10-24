@@ -72,7 +72,7 @@ so the addon is technically unable to reach Azure. Decision records: [ADR-0028](
 
 ## Quick start
 
-Requires Node 26 ([ADR-0029](docs/adr/ADR-0029-node-26-runtime-floor.md)) or the devcontainer.
+Requires Node 26 or newer ([ADR-0029](docs/adr/ADR-0029-node-26-runtime-floor.md)) or the devcontainer. Check yours first with `node --version`; it must print `v26` or higher. The repository's `.npmrc` sets `engine-strict=true`, so `npm ci` on an older Node stops with an "Unsupported engine" error instead of carrying on.
 
 ```bash
 npm ci && npm test                       # build, assemble the publishable packages, run the tests

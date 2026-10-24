@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the idea. To propose a change to a migration support rule, please use the "Rule change" template instead.
+        Please do not paste secrets, customer inventories or real tenant or subscription IDs.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem you want solved
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to see
+      description: Describe the change in plain words. A sketch is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other ways you considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part would change
+      options:
+        - Migration core (packages)
+        - Rule corpus (rules/)
+        - amo command line tool
+        - Explorer UI components
+        - Appliance API or worker
+        - Appliance web UI
+        - Container image or Terraform
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: I understand the web-front edition must never be able to reach Azure, and this request does not ask for that.
+          required: true
