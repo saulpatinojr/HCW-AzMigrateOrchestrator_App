@@ -7,10 +7,13 @@ with dependency-free credentials.
 
 Sign in with `az login` first (no secrets). Both shells use the subscription you are signed in to as the hosting subscription.
 
-PowerShell:
+The appliance image is always deployed by its exact digest, never by a tag such as `:latest` (a tag can change under a running deployment, so Terraform refuses it). The digest is the last line of the `publish-images` run summary (see `docs/release/docker-hub.md`) and looks like `docker.io/hybridcloudworks/hcw-app-migration-appliance@sha256:` followed by 64 hexadecimal characters. Copy that line first. Until a release has published an image there is no digest to deploy; the repository variables in `docs/release/docker-hub.md` start the publishing.
+
+PowerShell (the copied line is on the clipboard):
 
 ```powershell
 $env:ARM_SUBSCRIPTION_ID = az account show --query id --output tsv
+$env:TF_VAR_image_ref = Get-Clipboard
 Set-Location infrastructure/terraform/appliance-azure
 Copy-Item terraform.tfvars.example terraform.tfvars
 terraform init
@@ -22,6 +25,7 @@ bash:
 
 ```bash
 export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+read -r -p "Paste the image line from the publish-images run summary: " TF_VAR_image_ref && export TF_VAR_image_ref
 cd infrastructure/terraform/appliance-azure && cp terraform.tfvars.example terraform.tfvars
 terraform init && terraform plan -out appliance.plan && terraform apply appliance.plan
 ```
